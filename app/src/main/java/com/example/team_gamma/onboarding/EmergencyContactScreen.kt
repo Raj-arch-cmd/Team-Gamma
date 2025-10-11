@@ -1,6 +1,5 @@
 package com.example.team_gamma.onboarding
 
-
 import android.net.Uri
 import android.provider.ContactsContract
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -26,9 +25,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.team_gamma.R
-import com.example.team_gamma.data.Contact
+import com.example.resqtech.data.Contact
 import com.example.team_gamma.data.ContactEntity
 import com.example.team_gamma.data.ContactsViewModel
+
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 

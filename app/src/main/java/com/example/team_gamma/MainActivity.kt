@@ -29,7 +29,9 @@ import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.*
+import com.example.resqtech.data.*
 
+import com.example.resqtech.ui.theme.screens.*
 import com.example.team_gamma.component.SosConfirmationDialog
 import com.example.team_gamma.data.AiAssistantViewModel
 import com.example.team_gamma.data.AlertsViewModel
@@ -47,13 +49,13 @@ import com.example.team_gamma.screens.DosAndDontsScreen
 import com.example.team_gamma.screens.InformationScreen
 import com.example.team_gamma.screens.LocalReportsScreen
 import com.example.team_gamma.screens.LoudAlarmScreen
-import com.example.team_gamma.screens.MLPredictionScreen
 import com.example.team_gamma.screens.ManageContactsScreen
 import com.example.team_gamma.screens.MapScreen
 import com.example.team_gamma.screens.PreparednessHubScreen
 import com.example.team_gamma.screens.ProfileScreen
 import com.example.team_gamma.screens.SettingsScreen
 import com.example.team_gamma.ui.theme.TeamGammaTheme
+import kotlin.getValue
 
 data class BottomNavItem(val label: String, val icon: ImageVector, val route: String)
 
@@ -78,7 +80,7 @@ class MainActivity : ComponentActivity() {
                 else -> isSystemInDarkTheme()
             }
 
-            TeamGammaTheme(darkTheme = useDarkTheme) {
+            TeamGammaTheme (darkTheme = useDarkTheme) {
                 val navController = rememberNavController()
                 val navBackStackEntry by navController.currentBackStackEntryAsState()
                 val currentDestination = navBackStackEntry?.destination
@@ -235,9 +237,6 @@ fun AppNavigation(
         }
         composable("information") {
             InformationScreen(navController = navController)
-        }
-        composable("ml_prediction") {
-            MLPredictionScreen()
         }
     }
 }

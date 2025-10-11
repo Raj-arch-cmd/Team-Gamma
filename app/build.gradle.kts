@@ -45,8 +45,8 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17  // Change from VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_17  // Change from VERSION_1_8
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
     kotlinOptions {
         jvmTarget = "17"
@@ -81,11 +81,13 @@ dependencies {
 
     // Navigation & Hilt
     implementation(libs.navigation.compose)
-    implementation("androidx.hilt:hilt-navigation-compose:1.0.0")  // ADD THIS
+    implementation("androidx.hilt:hilt-navigation-compose:1.0.0")
 
     // Data
     implementation(libs.room.runtime)
     implementation(libs.room.ktx)
+    implementation(libs.firebase.auth.ktx)
+    implementation(libs.androidx.runtime.livedata)
     ksp(libs.room.compiler)
     implementation(libs.androidx.datastore.preferences)
 
@@ -95,7 +97,7 @@ dependencies {
     implementation(libs.gson)
     implementation(libs.coil.compose)
 
-    // ADD MOSHI DEPENDENCIES
+    // Moshi
     implementation(libs.moshi)
     implementation(libs.moshi.kotlin)
     implementation(libs.moshi.converter)
@@ -105,10 +107,10 @@ dependencies {
     implementation(libs.play.services.location)
     implementation(libs.generativeai)
 
-    // Firebase
-    implementation(platform(libs.firebase.bom))
-    implementation(libs.firebase.firestore.ktx)
-    implementation(libs.firebase.storage.ktx)
+    // Firebase - Remove the BOM and use specific versions to avoid conflicts
+    implementation(libs.firebase.auth.ktx)
+    implementation("com.google.firebase:firebase-firestore-ktx:24.10.3")
+    implementation("com.google.firebase:firebase-storage-ktx:20.3.0")
 
     // Hilt
     implementation(libs.hilt.android)

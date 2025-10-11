@@ -1,6 +1,5 @@
 package com.example.team_gamma.screens
 
-
 import android.content.Intent
 import android.net.Uri
 import android.provider.ContactsContract
@@ -18,7 +17,6 @@ import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
@@ -27,7 +25,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.example.team_gamma.data.Contact
+import androidx.compose.runtime.livedata.observeAsState
 import com.example.team_gamma.data.ContactEntity
 import com.example.team_gamma.data.ContactsViewModel
 import kotlinx.coroutines.launch
@@ -39,7 +37,8 @@ fun ManageContactsScreen(
     onNavigateBack: () -> Unit
 ) {
     val context = LocalContext.current
-    val emergencyContacts = contactsViewModel.emergencyContacts.collectAsState().value // FIX: Use .value to get the actual list
+    val emergencyContactsState = contactsViewModel.contacts.observeAsState(initial = emptyList())
+    val emergencyContacts = emergencyContactsState.value
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
@@ -65,14 +64,30 @@ fun ManageContactsScreen(
                                 if (pc.moveToFirst()) {
                                     val numberIndex = pc.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER)
                                     val number = pc.getString(numberIndex)
-                                    contactsViewModel.addContact(Contact(name, number))
+                                    val newContact = ContactEntity(
+                                        name = name ?: "Unknown Contact",
+                                        number = number ?: "No phone number"
+                                    )
+                                    contactsViewModel.addContact(newContact)
                                     scope.launch {
-                                        snackbarHostState.showSnackbar("$name added successfully")
+                                        snackbarHostState.showSnackbar("${name ?: "Contact"} added successfully")
                                     }
                                 }
                             }
+                        } else {
+                            scope.launch {
+                                snackbarHostState.showSnackbar("Selected contact has no phone number")
+                            }
                         }
                     }
+                } ?: run {
+                    scope.launch {
+                        snackbarHostState.showSnackbar("Failed to read contact information")
+                    }
+                }
+            } ?: run {
+                scope.launch {
+                    snackbarHostState.showSnackbar("Contact selection cancelled")
                 }
             }
         }
@@ -102,7 +117,6 @@ fun ManageContactsScreen(
                 .padding(innerPadding)
                 .padding(16.dp)
         ) {
-            // Button to open the native phone dialer
             Button(
                 onClick = {
                     val intent = Intent(Intent.ACTION_DIAL)
@@ -110,7 +124,11 @@ fun ManageContactsScreen(
                 },
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Icon(Icons.Default.Call, contentDescription = "Call Icon", modifier = Modifier.padding(end = 8.dp))
+                Icon(
+                    Icons.Default.Call,
+                    contentDescription = "Call Icon",
+                    modifier = Modifier.padding(end = 8.dp)
+                )
                 Text("Call Another Contact")
             }
 
@@ -130,11 +148,17 @@ fun ManageContactsScreen(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("No emergency contacts added yet.", textAlign = TextAlign.Center)
+                    Text(
+                        "No emergency contacts added yet.",
+                        textAlign = TextAlign.Center
+                    )
                 }
             } else {
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(emergencyContacts) { contact ->
+                LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    items(emergencyContacts, key = { it.id }) { contact ->
                         ContactItem(
                             contact = contact,
                             onRemove = { contactsViewModel.removeContact(contact) }
@@ -146,10 +170,12 @@ fun ManageContactsScreen(
     }
 }
 
-// Update ContactItem to accept ContactEntity
 @Composable
 fun ContactItem(contact: ContactEntity, onRemove: () -> Unit) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
         Row(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -168,11 +194,23 @@ fun ContactItem(contact: ContactEntity, onRemove: () -> Unit) {
             }
             Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(text = contact.name, fontWeight = FontWeight.Bold)
-                Text(text = contact.number, style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    text = contact.name,
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.bodyLarge
+                )
+                Text(
+                    text = contact.number,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                )
             }
             IconButton(onClick = onRemove) {
-                Icon(Icons.Default.Close, contentDescription = "Remove ${contact.name}")
+                Icon(
+                    Icons.Default.Close,
+                    contentDescription = "Remove ${contact.name}",
+                    tint = MaterialTheme.colorScheme.error
+                )
             }
         }
     }

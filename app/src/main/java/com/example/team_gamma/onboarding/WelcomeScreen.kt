@@ -1,6 +1,5 @@
 package com.example.team_gamma.onboarding
 
-
 import android.Manifest
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -31,6 +30,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.lerp
+
 import kotlinx.coroutines.launch
 import kotlin.math.absoluteValue
 
