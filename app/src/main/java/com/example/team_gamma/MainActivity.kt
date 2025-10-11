@@ -29,10 +29,16 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.*
 import com.example.team_gamma.component.SosConfirmationDialog
 import com.example.team_gamma.data.*
+import com.example.team_gamma.loginscreen.LoginScreen
+import com.example.team_gamma.loginscreen.ManualAlertViewModel
+import com.example.team_gamma.loginscreen.SignUpScreen
 import com.example.team_gamma.onboarding.EmergencyContactScreen
 import com.example.team_gamma.onboarding.WelcomeScreen
 import com.example.team_gamma.screens.*
 import com.example.team_gamma.ui.theme.TeamGammaTheme
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlin.getValue
 
 data class BottomNavItem(val label: String, val icon: ImageVector, val route: String)
@@ -45,8 +51,9 @@ class MainActivity : ComponentActivity() {
     private val hubViewModel by viewModels<HubViewModel>()
     private val alertsViewModel by viewModels<AlertsViewModel>()
     private val localReportsViewModel by viewModels<LocalReportsViewModel>()
-    // <-- 1. ADD THIS VIEWMODEL
-    private val floodPredictionViewModel by viewModels<FloodPredictionViewModel>()
+
+    // NEW: Add the ViewModel for the manual demo
+    private val manualAlertViewModel by viewModels<ManualAlertViewModel>()
 
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -144,26 +151,38 @@ class MainActivity : ComponentActivity() {
                         hubViewModel = hubViewModel,
                         alertsViewModel = alertsViewModel,
                         localReportsViewModel = localReportsViewModel,
-                        // <-- 2. PASS THE VIEWMODEL DOWN
-                        floodPredictionViewModel = floodPredictionViewModel
+                        // UPDATED: Pass the new manual ViewModel
+                        manualAlertViewModel = manualAlertViewModel
                     )
                 }
             }
         }
     }
 
+
     @SuppressLint("MissingPermission")
     private fun sendSosMessage() {
-        // NOTE: This is a basic implementation. You'll need to add logic to get the user's location.
-        val message = "Emergency! I need help. This is an automated alert."
-        val smsManager = SmsManager.getDefault()
-        contactsViewModel.emergencyContacts.value.forEach { contact ->
+        CoroutineScope(Dispatchers.Main).launch {
+            val message = "Emergency! I need help. This is an automated alert from ResQTech."
+            val smsManager = SmsManager.getDefault()
+
             try {
-                smsManager.sendTextMessage(contact.number, null, message, null, null)
-                Toast.makeText(this, "SOS message sent to ${contact.name}", Toast.LENGTH_SHORT).show()
+                val contactList = contactsViewModel.getSavedContacts()
+                if (contactList.isEmpty()) {
+                    Toast.makeText(this@MainActivity, "No emergency contacts found.", Toast.LENGTH_LONG).show()
+                    return@launch
+                }
+                contactList.forEach { contact ->
+                    try {
+                        smsManager.sendTextMessage(contact.number, null, message, null, null)
+                        Toast.makeText(this@MainActivity, "SOS sent to ${contact.name}", Toast.LENGTH_SHORT).show()
+                    } catch (e: Exception) {
+                        Toast.makeText(this@MainActivity, "Failed to send to ${contact.name}", Toast.LENGTH_SHORT).show()
+                        e.printStackTrace()
+                    }
+                }
             } catch (e: Exception) {
-                Toast.makeText(this, "Failed to send SOS to ${contact.name}", Toast.LENGTH_SHORT).show()
-                e.printStackTrace()
+                Toast.makeText(this@MainActivity, "Could not load contacts.", Toast.LENGTH_LONG).show()
             }
         }
     }
@@ -180,25 +199,55 @@ fun AppNavigation(
     hubViewModel: HubViewModel,
     alertsViewModel: AlertsViewModel,
     localReportsViewModel: LocalReportsViewModel,
-    // <-- 3. RECEIVE THE VIEWMODEL
-    floodPredictionViewModel: FloodPredictionViewModel
+    // UPDATED: Receive the new manual ViewModel
+    manualAlertViewModel: ManualAlertViewModel
 ) {
     NavHost(
         navController = navController,
-        startDestination = "welcome",
+        startDestination = "login", // Set login as the starting screen
         modifier = modifier
     ) {
+        // Login and Signup Routes
+        composable("login") {
+            LoginScreen(
+                navController = navController,
+                onLoginSuccess = {
+                    navController.navigate("dashboard") {
+                        popUpTo("login") { inclusive = true }
+                    }
+                }
+            )
+        }
+        composable("signup") {
+            SignUpScreen(
+                navController = navController,
+                onSignUpSuccess = {
+                    navController.navigate("dashboard") {
+                        popUpTo("signup") { inclusive = true }
+                    }
+                }
+            )
+        }
+
+        // Onboarding Routes
         composable("welcome") { WelcomeScreen(onPermissionsGranted = { navController.navigate("emergency_contact_setup") }) }
         composable("emergency_contact_setup") { EmergencyContactScreen(contactsViewModel = contactsViewModel, onContactsConfirmed = { navController.navigate("dashboard") }, onNavigateBack = { navController.popBackStack() }) }
 
+        // Main App Routes
         composable("dashboard") {
-            // <-- 4. PASS IT TO THE SCREEN
             PreparednessHubScreen(
                 navController = navController,
                 hubViewModel = hubViewModel,
-                floodPredictionViewModel = floodPredictionViewModel
+                // UPDATED: Pass the new manual ViewModel
+                manualAlertViewModel = manualAlertViewModel // This is the correct parameter name
             )
         }
+
+        // NEW: Add the route for the disaster detail screen
+        composable("disaster_detail") {
+            DisasterDetailScreen(navController = navController)
+        }
+
         composable("manage_contacts") { ManageContactsScreen(contactsViewModel = contactsViewModel, onNavigateBack = { navController.popBackStack() }) }
         composable("dos_and_donts") { DosAndDontsScreen(onNavigateBack = { navController.popBackStack() }) }
         composable("loud_alarm") { LoudAlarmScreen(onNavigateBack = { navController.popBackStack() }) }

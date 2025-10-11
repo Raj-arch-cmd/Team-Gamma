@@ -1,11 +1,19 @@
 package com.example.team_gamma.FlaskApi
 
-// File: PredictionResponse.kt
+import com.google.gson.annotations.SerializedName
+
+// This data class now perfectly matches the JSON from your friend's server.
 data class PredictionResponse(
-    val status: String, // e.g., "all_clear", "rainfall_started", "high_risk"
-    val message: String,
-    val risk_percentage: Double?, // Nullable because it might not always be there
-    val population_at_risk: Int?, // Nullable
-    val map_url: String?,         // Nullable
-    val evacuation_map_url: String? // Nullable
+
+    @SerializedName("state")
+    val status: String, // "HIGH_RISK", "RAINFALL_STARTED", "CLEAR"
+
+    @SerializedName("risk_score")
+    val riskPercentage: Double?,
+
+    @SerializedName("evacuation_map")
+    val evacuationMapUrl: String?,
+
+    // We will add a custom message in the app, since the server doesn't provide one.
+    val shelters: List<Any>? // We can ignore the shelter details for now
 )

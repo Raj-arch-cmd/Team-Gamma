@@ -87,9 +87,13 @@ fun PreparednessHubScreen(
                     .animateContentSize(), // Smoothly animates size changes
                 contentAlignment = Alignment.Center
             ) {
+                // Inside PreparednessHubScreen.kt, find the when(state) block and replace it.
+
                 when (val state = uiState) {
                     is PredictionUiState.Loading -> {
-                        CircularProgressIndicator()
+                        Box(modifier = Modifier.fillMaxWidth().padding(vertical = 20.dp), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator()
+                        }
                     }
                     is PredictionUiState.Error -> {
                         PredictionAlertCard(
@@ -100,25 +104,39 @@ fun PreparednessHubScreen(
                     }
                     is PredictionUiState.Success -> {
                         val prediction = state.prediction
+                        // We now check the "status" field from our new data class
                         when (prediction.status) {
-                            "all_clear" -> PredictionStatusCard(
+                            "CLEAR" -> PredictionStatusCard(
                                 title = "All Clear",
-                                message = prediction.message,
+                                // We create our own message
+                                message = "No immediate risk detected in your area. Stay prepared.",
                                 icon = Icons.Default.CheckCircle,
                                 iconTint = Color(0xFF00C853)
                             )
-                            "rainfall_started" -> PredictionStatusCard(
+                            "RAINFALL_STARTED" -> PredictionStatusCard(
                                 title = "Rainfall Started",
-                                message = "Risk: ${prediction.risk_percentage ?: "N/A"}% | Population at Risk: ${prediction.population_at_risk ?: "N/A"}",
+                                // We format our own message using the riskPercentage
+                                message = "Risk: ${prediction.riskPercentage?.times(100)?.toInt() ?: "N/A"}%",
                                 icon = Icons.Default.Cloud,
                                 iconTint = Color.Gray
                             )
-                            "high_risk" -> PredictionAlertCard(
+                            "HIGH_RISK" -> PredictionAlertCard(
                                 title = "HIGH RISK ALERT",
-                                message = prediction.message,
+                                // We create our own message
+                                message = "Water levels may be rising. Evacuation could be necessary.",
                                 cardColor = MaterialTheme.colorScheme.error,
-                                evacuationMapUrl = prediction.evacuation_map_url
+                                // The evacuationMapUrl field now matches the server's response
+                                evacuationMapUrl = prediction.evacuationMapUrl
                             )
+                            else -> {
+                                // A fallback for any unexpected status from the server
+                                PredictionStatusCard(
+                                    title = "Unknown Status",
+                                    message = "Received an unrecognized status: ${prediction.status}",
+                                    icon = Icons.Default.Help,
+                                    iconTint = Color.Gray
+                                )
+                            }
                         }
                     }
                 }

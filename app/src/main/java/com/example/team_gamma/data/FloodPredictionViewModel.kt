@@ -19,16 +19,20 @@ class FloodPredictionViewModel : ViewModel() {
     private val _uiState = MutableStateFlow<PredictionUiState>(PredictionUiState.Loading)
     val uiState: StateFlow<PredictionUiState> = _uiState
 
-    // THIS IS THE FIX: The function no longer needs parameters.
     fun fetchPrediction() {
         viewModelScope.launch {
             _uiState.value = PredictionUiState.Loading
             try {
-                // The call now has no arguments.
                 val response = RetrofitClient.instance.getPrediction()
                 _uiState.value = PredictionUiState.Success(response)
             } catch (e: Exception) {
-                _uiState.value = PredictionUiState.Error("Failed to connect to server: ${e.message}")
+                val errorMessage = when {
+                    e is java.net.SocketTimeoutException -> "Connection timeout - server not responding"
+                    e is java.net.ConnectException -> "Cannot connect to server - check if Flask is running"
+                    e is java.net.UnknownHostException -> "Server address not found"
+                    else -> "Network error: ${e.message}"
+                }
+                _uiState.value = PredictionUiState.Error(errorMessage)
             }
         }
     }

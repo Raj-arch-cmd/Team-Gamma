@@ -7,6 +7,7 @@ import com.example.resqtech.data.Contact
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.first
 
 class ContactsViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -30,5 +31,10 @@ class ContactsViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch {
             appDao.deleteContact(contactEntity)
         }
+    }
+
+    suspend fun getSavedContacts(): List<ContactEntity> {
+        // .first() gets the most recent list from the database instantly
+        return appDao.getAllContacts().first()
     }
 }
