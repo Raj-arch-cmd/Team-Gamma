@@ -25,9 +25,9 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import com.example.resqtech.data.EmergencyAlert
-import com.example.resqtech.data.HubViewModel
-import com.example.resqtech.ui.theme.ResQTechTheme
+import com.example.team_gamma.data.EmergencyAlert
+import com.example.team_gamma.data.HubViewModel
+
 import kotlinx.coroutines.launch
 
 data class QuickAction(

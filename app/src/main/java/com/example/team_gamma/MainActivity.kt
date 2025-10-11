@@ -1,4 +1,4 @@
-package com.example.resqtech
+package com.example.team_gamma
 
 import android.Manifest
 import android.annotation.SuppressLint
@@ -29,12 +29,31 @@ import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.*
-import com.example.resqtech.data.*
-import com.example.resqtech.ui.theme.ResQTechTheme
-import com.example.resqtech.ui.theme.component.SosConfirmationDialog
-import com.example.resqtech.ui.theme.onboarding.EmergencyContactScreen
-import com.example.resqtech.ui.theme.onboarding.WelcomeScreen
-import com.example.resqtech.ui.theme.screens.*
+
+import com.example.team_gamma.component.SosConfirmationDialog
+import com.example.team_gamma.data.AiAssistantViewModel
+import com.example.team_gamma.data.AlertsViewModel
+import com.example.team_gamma.data.ContactsViewModel
+import com.example.team_gamma.data.HubViewModel
+import com.example.team_gamma.data.LocalReportsViewModel
+import com.example.team_gamma.data.ProfileViewModel
+import com.example.team_gamma.data.SettingsViewModel
+import com.example.team_gamma.onboarding.EmergencyContactScreen
+import com.example.team_gamma.onboarding.WelcomeScreen
+import com.example.team_gamma.screens.AiAssistantScreen
+import com.example.team_gamma.screens.AlertsScreen
+import com.example.team_gamma.screens.CreateReportScreen
+import com.example.team_gamma.screens.DosAndDontsScreen
+import com.example.team_gamma.screens.InformationScreen
+import com.example.team_gamma.screens.LocalReportsScreen
+import com.example.team_gamma.screens.LoudAlarmScreen
+import com.example.team_gamma.screens.MLPredictionScreen
+import com.example.team_gamma.screens.ManageContactsScreen
+import com.example.team_gamma.screens.MapScreen
+import com.example.team_gamma.screens.PreparednessHubScreen
+import com.example.team_gamma.screens.ProfileScreen
+import com.example.team_gamma.screens.SettingsScreen
+import com.example.team_gamma.ui.theme.TeamGammaTheme
 
 data class BottomNavItem(val label: String, val icon: ImageVector, val route: String)
 
@@ -59,7 +78,7 @@ class MainActivity : ComponentActivity() {
                 else -> isSystemInDarkTheme()
             }
 
-            ResQTechTheme(darkTheme = useDarkTheme) {
+            TeamGammaTheme(darkTheme = useDarkTheme) {
                 val navController = rememberNavController()
                 val navBackStackEntry by navController.currentBackStackEntryAsState()
                 val currentDestination = navBackStackEntry?.destination

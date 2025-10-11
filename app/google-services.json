@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "648284505677",
+    "project_id": "teamgamma-b6f6f",
+    "storage_bucket": "teamgamma-b6f6f.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:648284505677:android:d5a52ce8d3d098b425be04",
+        "android_client_info": {
+          "package_name": "com.example.team_gamma"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAH6x3Yeek0qtKbNC78SnTNqerLG2DK8-c"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

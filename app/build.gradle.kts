@@ -17,11 +17,11 @@ if (localPropertiesFile.exists()) {
 }
 
 android {
-    namespace = "com.example.resqtech"
+    namespace = "com.example.team_gamma"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.example.resqtech"
+        applicationId = "com.example.team_gamma"
         minSdk = 24
         targetSdk = 34
         versionCode = 1

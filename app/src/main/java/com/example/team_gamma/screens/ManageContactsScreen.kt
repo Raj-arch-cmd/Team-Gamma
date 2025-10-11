@@ -27,9 +27,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.example.resqtech.data.Contact
-import com.example.resqtech.data.ContactEntity
-import com.example.resqtech.data.ContactsViewModel
+import com.example.team_gamma.data.Contact
+import com.example.team_gamma.data.ContactEntity
+import com.example.team_gamma.data.ContactsViewModel
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)

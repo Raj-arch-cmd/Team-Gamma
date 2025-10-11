@@ -24,8 +24,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.rememberAsyncImagePainter
-import com.example.resqtech.R
-import com.example.resqtech.data.ProfileViewModel
+import com.example.team_gamma.R
+import com.example.team_gamma.data.ProfileViewModel
 import java.io.File
 import java.io.FileOutputStream
 import java.text.SimpleDateFormat

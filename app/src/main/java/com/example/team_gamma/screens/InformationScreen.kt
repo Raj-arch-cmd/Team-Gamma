@@ -1,6 +1,7 @@
 package com.example.team_gamma.screens
 
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import android.hardware.camera2.CameraManager
@@ -18,12 +19,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import com.example.resqtech.R
+import com.example.team_gamma.R // Correct R class import
+import com.google.android.gms.location.LocationServices
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 
@@ -34,6 +35,7 @@ data class UtilityAction(val title: String, val description: String, val icon: a
 data class FirstAidTip(val title: String, val immediateAction: String, val detailedSteps: String)
 data class ChecklistItem(val text: String, var isChecked: Boolean)
 
+@SuppressLint("MissingPermission") // Suppress lint check as permissions should be requested at app start
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun InformationScreen(navController: NavController) {
@@ -303,6 +305,7 @@ fun InformationScreen(navController: NavController) {
                 title = "Emergency Whistle & Alarm",
                 content = {
                     var isPlaying by remember { mutableStateOf(false) }
+                    // Correctly uses R.raw.emergency_alarm from your project
                     val mediaPlayer = remember { MediaPlayer.create(context, R.raw.emergency_alarm) }
 
                     DisposableEffect(Unit) {
@@ -315,6 +318,7 @@ fun InformationScreen(navController: NavController) {
                         onClick = {
                             if (isPlaying) {
                                 mediaPlayer.pause()
+                                mediaPlayer.seekTo(0)
                                 isPlaying = false
                             } else {
                                 mediaPlayer.start()
@@ -356,17 +360,33 @@ fun InformationScreen(navController: NavController) {
                 content = {
                     Button(
                         onClick = {
-                            val mapLink = "https://www.google.com/maps/search/?api=1&query=28.6139,77.2090"
-                            val shareIntent = Intent().apply {
-                                action = Intent.ACTION_SEND
-                                putExtra(Intent.EXTRA_TEXT,
-                                    "🚨 EMERGENCY: I need help! My current location is: $mapLink\n" +
-                                            "Sent via ResQTech Safety App"
-                                )
-                                type = "text/plain"
+                            // **FIXED CODE**: This now gets the real location.
+                            // Ensure you have location permissions in AndroidManifest.xml
+                            // (ACCESS_FINE_LOCATION and ACCESS_COARSE_LOCATION)
+                            val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
+                            try {
+                                fusedLocationClient.lastLocation.addOnSuccessListener { location ->
+                                    val mapLink = if (location != null) {
+                                        "http://maps.google.com/maps?q=loc:$${location.latitude},${location.longitude}"
+                                    } else {
+                                        // Fallback if location is not immediately available
+                                        "Location not available. Enable GPS."
+                                    }
+                                    val shareIntent = Intent().apply {
+                                        action = Intent.ACTION_SEND
+                                        putExtra(Intent.EXTRA_TEXT,
+                                            "🚨 EMERGENCY: I need help! My current location is: $mapLink\n" +
+                                                    "Sent via ResQTech Safety App"
+                                        )
+                                        type = "text/plain"
+                                    }
+                                    context.startActivity(Intent.createChooser(shareIntent, "Share Location via"))
+                                }
+                                vibrate()
+                            } catch (e: SecurityException) {
+                                e.printStackTrace()
+                                // Optionally show a toast message to the user to enable permissions
                             }
-                            context.startActivity(Intent.createChooser(shareIntent, "Share Location via"))
-                            vibrate()
                         },
                         modifier = Modifier.fillMaxWidth(),
                         colors = ButtonDefaults.buttonColors(

@@ -1,6 +1,7 @@
 package com.example.team_gamma.screens
 
 
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -17,11 +18,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.example.resqtech.data.ChecklistItem
-import com.example.resqtech.data.ChecklistSection
-import com.example.resqtech.data.DisasterDataProvider
-import com.example.resqtech.data.DisasterGuide
-import com.example.resqtech.ui.theme.ResQTechTheme
+import com.example.team_gamma.data.ChecklistSection
+import com.example.team_gamma.data.DisasterDataProvider
+import com.example.team_gamma.data.DisasterGuide
+import com.example.team_gamma.ui.theme.TeamGammaTheme
+import com.example.team_gamma.data.ChecklistItem
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -135,7 +137,7 @@ fun ChecklistItemRow(item: ChecklistItem) {
 @Preview(showBackground = true)
 @Composable
 fun DosAndDontsScreenPreview() {
-    ResQTechTheme {
+    TeamGammaTheme {
         DosAndDontsScreen(onNavigateBack = {})
     }
 }

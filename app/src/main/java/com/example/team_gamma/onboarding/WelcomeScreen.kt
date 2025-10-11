@@ -268,12 +268,3 @@ fun OnboardingPageContent(page: OnboardingPage, modifier: Modifier = Modifier) {
         )
     }
 }
-
-@Preview(showBackground = true)
-@Composable
-fun WelcomeScreenPreviewNew() {
-    ResQTechTheme {
-        WelcomeScreen(onPermissionsGranted = {})
-    }
-}
-

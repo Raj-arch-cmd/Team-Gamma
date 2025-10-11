@@ -16,8 +16,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.example.resqtech.data.SettingsViewModel
-import com.example.resqtech.ui.theme.ResQTechTheme
+import com.example.team_gamma.data.SettingsViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -167,15 +166,4 @@ fun SettingsItem(
     }
 }
 
-@Preview(showBackground = true)
-@Composable
-fun SettingsScreenPreview() {
-    val context = LocalContext.current
-    ResQTechTheme {
-        SettingsScreen(
-            viewModel = SettingsViewModel(context.applicationContext as Application),
-            onNavigateBack = {}
-        )
-    }
-}
 

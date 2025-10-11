@@ -25,7 +25,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.resqtech.R
+import com.example.team_gamma.R
 import com.example.team_gamma.data.Contact
 import com.example.team_gamma.data.ContactEntity
 import com.example.team_gamma.data.ContactsViewModel
