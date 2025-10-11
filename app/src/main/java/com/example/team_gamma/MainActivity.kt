@@ -26,6 +26,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
@@ -231,6 +232,9 @@ fun AppNavigation(
     authViewModel: AuthViewModel,
     startDestination: String
 ) {
+
+    val floodPredictionViewModel: FloodPredictionViewModel = viewModel()
+
     NavHost(
         navController = navController,
         startDestination = startDestination,
@@ -294,9 +298,18 @@ fun AppNavigation(
             PreparednessHubScreen(
                 navController = navController,
                 hubViewModel = hubViewModel,
-                manualAlertViewModel = manualAlertViewModel
+                floodPredictionViewModel = floodPredictionViewModel
+                // No manualAlertViewModel is passed here
             )
         }
+        composable("evacuation_routes") {
+            EvacuationRoutesScreen(
+                navController = navController,
+                // ✅ Pass the SAME shared ViewModel to the new screen
+                viewModel = floodPredictionViewModel
+            )
+        }
+
         composable("alerts") { AlertsScreen(viewModel = alertsViewModel) }
         composable("local_reports") {
             LocalReportsScreen(navController = navController, viewModel = localReportsViewModel)

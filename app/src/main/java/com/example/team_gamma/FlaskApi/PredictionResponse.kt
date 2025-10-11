@@ -2,11 +2,10 @@ package com.example.team_gamma.FlaskApi
 
 import com.google.gson.annotations.SerializedName
 
-// This data class now perfectly matches the JSON from your friend's server.
+// Main response class
 data class PredictionResponse(
-
     @SerializedName("state")
-    val status: String, // "HIGH_RISK", "RAINFALL_STARTED", "CLEAR"
+    val status: String,
 
     @SerializedName("risk_score")
     val riskPercentage: Double?,
@@ -14,6 +13,35 @@ data class PredictionResponse(
     @SerializedName("evacuation_map")
     val evacuationMapUrl: String?,
 
-    // We will add a custom message in the app, since the server doesn't provide one.
-    val shelters: List<Any>? // We can ignore the shelter details for now
+    // Nested object for risk assessment
+    @SerializedName("risk_assessment")
+    val riskAssessment: RiskAssessment?,
+
+    // List of nested objects for evacuation routes
+    @SerializedName("evacuation_routes")
+    val evacuationRoutes: List<EvacuationRoute>?
+)
+
+// Class for the "risk_assessment" JSON object
+data class RiskAssessment(
+    @SerializedName("elevation_risk")
+    val elevationRisk: Double,
+
+    @SerializedName("population_risk")
+    val populationRisk: Double,
+
+    @SerializedName("total_risk")
+    val totalRisk: Double
+)
+
+// Class for each item in the "evacuation_routes" JSON array
+data class EvacuationRoute(
+    @SerializedName("shelter")
+    val shelter: String,
+
+    @SerializedName("distance_km")
+    val distanceKm: Double,
+
+    @SerializedName("priority")
+    val priority: String
 )

@@ -1,13 +1,14 @@
 package com.example.team_gamma.data
 
-import com.example.team_gamma.FlaskApi.PredictionResponse
-import com.example.team_gamma.FlaskApi.RetrofitClient
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.team_gamma.FlaskApi.PredictionResponse // ✅ CORRECT IMPORT
+import com.example.team_gamma.FlaskApi.RetrofitClient
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
+// This sealed interface now correctly holds the new, richer PredictionResponse
 sealed interface PredictionUiState {
     object Loading : PredictionUiState
     data class Success(val prediction: PredictionResponse) : PredictionUiState

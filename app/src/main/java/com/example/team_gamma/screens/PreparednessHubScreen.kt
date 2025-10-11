@@ -1,10 +1,8 @@
 package com.example.team_gamma.screens
 
 import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -16,15 +14,19 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.resqtech.ui.theme.screens.GoogleMapScreen
+import com.example.team_gamma.R
+import com.example.team_gamma.data.FloodPredictionViewModel
 import com.example.team_gamma.data.HubViewModel
-import com.example.team_gamma.data.ManualAlertState
-import com.example.team_gamma.data.ManualAlertViewModel
+import com.example.team_gamma.data.PredictionUiState
 
 data class HubQuickAction(
     val icon: ImageVector,
@@ -37,19 +39,25 @@ data class HubQuickAction(
 fun PreparednessHubScreen(
     navController: NavController,
     hubViewModel: HubViewModel,
-    manualAlertViewModel: ManualAlertViewModel
+    floodPredictionViewModel: FloodPredictionViewModel = viewModel()
 ) {
     val quickActions = listOf(
         HubQuickAction(Icons.Default.Contacts, "Contacts", "manage_contacts"),
         HubQuickAction(Icons.Default.VolumeUp, "Loud Alarm", "loud_alarm"),
         HubQuickAction(Icons.Default.ListAlt, "Do's & Don'ts", "dos_and_donts"),
         HubQuickAction(Icons.Default.Chat, "AI Assistant", "ai_assistant"),
-        // 👇 UPDATED THIS LINE
-        HubQuickAction(Icons.Default.LocalHospital, "Nearest Hospital", "nearest_hospital"),
-        HubQuickAction(Icons.Default.Info, "Information", "information"),
+        // ✅ THIS LINE HAS BEEN CHANGED BACK
+        HubQuickAction(Icons.Default.Route, "Safe Route", "evacuation_routes"),
+        HubQuickAction(Icons.Default.Info, "Information", "information")
     )
-    // Collect the state from the manual ViewModel
-    val currentAlertState by manualAlertViewModel.uiState.collectAsState()
+
+    LaunchedEffect(key1 = true) {
+        floodPredictionViewModel.fetchPrediction()
+    }
+    val uiState by floodPredictionViewModel.uiState.collectAsState()
+
+    val isHighRisk = uiState is PredictionUiState.Success &&
+            (uiState as PredictionUiState.Success).prediction.status == "HIGH_RISK"
 
     Scaffold { innerPadding ->
         Column(
@@ -58,17 +66,21 @@ fun PreparednessHubScreen(
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
         ) {
-            // --- Top Map Section ---
+            // --- CONDITIONAL MAP SECTION ---
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(250.dp),
                 contentAlignment = Alignment.Center
             ) {
-                GoogleMapScreen()
+                if (isHighRisk) {
+                    EvacuationMapImageView()
+                } else {
+                    GoogleMapScreen()
+                }
             }
 
-            // --- MANUAL ALERT STATUS SECTION ---
+            // --- REAL API STATUS SECTION ---
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -76,87 +88,141 @@ fun PreparednessHubScreen(
                     .animateContentSize(),
                 contentAlignment = Alignment.Center
             ) {
-                ManualAlertStatusCard(
-                    currentAlertState = currentAlertState,
-                    manualAlertViewModel = manualAlertViewModel
-                )
+                when (val state = uiState) {
+                    is PredictionUiState.Loading -> CircularProgressIndicator()
+                    is PredictionUiState.Error -> PredictionAlertCard(
+                        title = "Connection Error",
+                        message = state.message,
+                        cardColor = MaterialTheme.colorScheme.errorContainer
+                    )
+                    is PredictionUiState.Success -> {
+                        val prediction = state.prediction
+                        when (prediction.status) {
+                            "CLEAR" -> PredictionStatusCard(
+                                title = "All Clear",
+                                message = "No immediate flood risk detected. Stay prepared.",
+                                icon = Icons.Default.CheckCircle,
+                                iconTint = Color(0xFF00C853)
+                            )
+                            "RAINFALL_STARTED" -> PredictionStatusCard(
+                                title = "Rainfall Started",
+                                message = "Monitor conditions. Risk: ${prediction.riskPercentage?.times(100)?.toInt() ?: "N/A"}%",
+                                icon = Icons.Default.WaterDrop,
+                                iconTint = Color.Gray
+                            )
+                            "HIGH_RISK" -> PredictionAlertCard(
+                                title = "HIGH RISK ALERT",
+                                message = "Flooding is likely. Prepare for possible evacuation.",
+                                cardColor = MaterialTheme.colorScheme.error
+                            )
+                            else -> PredictionStatusCard(
+                                title = "Unknown Status",
+                                message = "Received an unrecognized status from server.",
+                                icon = Icons.Default.Help,
+                                iconTint = Color.Gray
+                            )
+                        }
+                    }
+                }
             }
 
             // --- Quick Actions Section ---
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 16.dp)
-            ) {
-                Text(
-                    "Quick Actions",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
-                )
+            Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+                Text("Quick Actions", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(16.dp))
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(3),
-                    modifier = Modifier.fillMaxWidth().height(250.dp),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                    userScrollEnabled = false
-                ) {
-                    items(quickActions) { action ->
-                        QuickActionItem(
-                            action = action,
-                            onClick = { navController.navigate(action.route) }
-                        )
+
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    // First row of actions
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceAround
+                    ) {
+                        quickActions.take(3).forEach { action ->
+                            QuickActionItem(
+                                action = action,
+                                onClick = { navController.navigate(action.route) }
+                            )
+                        }
+                    }
+                    // Second row of actions
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceAround
+                    ) {
+                        quickActions.drop(3).forEach { action ->
+                            QuickActionItem(
+                                action = action,
+                                onClick = { navController.navigate(action.route) }
+                            )
+                        }
                     }
                 }
-                Spacer(modifier = Modifier.height(100.dp))
+                Spacer(modifier = Modifier.height(100.dp)) // Padding for FAB
             }
         }
     }
 }
 
 @Composable
-fun ManualAlertStatusCard(
-    currentAlertState: ManualAlertState,
-    manualAlertViewModel: ManualAlertViewModel
-) {
+fun EvacuationMapImageView() {
+    Image(
+        painter = painterResource(id = R.drawable.evacuation_map),
+        contentDescription = "Evacuation Map",
+        modifier = Modifier.fillMaxSize(),
+        contentScale = ContentScale.Crop
+    )
+}
+
+@Composable
+fun PredictionStatusCard(title: String, message: String, icon: ImageVector, iconTint: Color) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(4.dp),
-        colors = CardDefaults.cardColors(containerColor = currentAlertState.color)
+        modifier = Modifier.fillMaxWidth().wrapContentHeight(),
+        elevation = CardDefaults.cardElevation(4.dp)
+    ) {
+        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(imageVector = icon, contentDescription = title, tint = iconTint, modifier = Modifier.size(32.dp))
+            Spacer(modifier = Modifier.width(16.dp))
+            Column {
+                Text(text = title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text(text = message, style = MaterialTheme.typography.bodyMedium)
+            }
+        }
+    }
+}
+
+@Composable
+fun PredictionAlertCard(title: String, message: String, cardColor: Color) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .wrapContentHeight(),
+        elevation = CardDefaults.cardElevation(8.dp),
+        colors = CardDefaults.cardColors(containerColor = cardColor),
+        shape = RoundedCornerShape(12.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = currentAlertState.title,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                color = Color.White
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = currentAlertState.message,
-                style = MaterialTheme.typography.bodyMedium,
-                color = Color.White
-            )
-
-            // Demo controls for testing
-            Spacer(modifier = Modifier.height(16.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Button(
-                    onClick = { manualAlertViewModel.setNoRisk() },
-                    modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color.White)
-                ) {
-                    Text("All Clear", color = Color.Black)
-                }
-                Button(
-                    onClick = { manualAlertViewModel.setHighRisk() },
-                    modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color.White)
-                ) {
-                    Text("High Risk", color = Color.Black)
+            Row(verticalAlignment = Alignment.Top) {
+                Icon(
+                    Icons.Default.Warning,
+                    "Alert",
+                    tint = Color.White,
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        title,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        message,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.White,
+                        lineHeight = 18.sp
+                    )
                 }
             }
         }
