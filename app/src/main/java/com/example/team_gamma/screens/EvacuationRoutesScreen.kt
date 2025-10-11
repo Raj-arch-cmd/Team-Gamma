@@ -76,54 +76,76 @@ fun EvacuationRoutesScreen(
                         }
                     }
 
-                    // Section 3: Risk Interpretation
-                    item { ReportSectionHeader(title = "2. Risk Interpretation") }
-                    item {
-                        data.riskAssessment?.let {
-                            RiskInterpretationContent(assessment = it)
-                        }
-                    }
-
-                    // Section 4: Recommended Shelters
-                    item { ReportSectionHeader(title = "3. Recommended Evacuation Shelters") }
+                    // Section 3: Evacuation Shelters
+                    item { ReportSectionHeader(title = "2. Available Evacuation Shelters") }
                     item {
                         Text(
-                            "The following high-priority shelters have been identified. Proceed to the nearest available shelter as soon as it is safe to do so.",
+                            "There are 3 evacuation shelters available in your area. All shelters are marked as HIGH priority.",
                             style = MaterialTheme.typography.bodyMedium
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            "Choose the closest shelter based on your current location and safety of the route.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
 
                     val routes = data.evacuationRoutes?.sortedBy { it.distanceKm }
                     if (!routes.isNullOrEmpty()) {
-                        val closestShelter = routes.first()
-                        item { PrimaryShelterCard(route = closestShelter) }
-
-                        val otherShelters = routes.drop(1)
-                        if (otherShelters.isNotEmpty()) {
-                            item {
+                        // Show all three shelters in simple text format
+                        item {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp)
+                                    .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(8.dp))
+                                    .padding(16.dp)
+                            ) {
                                 Text(
-                                    "Secondary Recommendations",
+                                    "Available Evacuation Shelters:",
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.padding(top = 8.dp)
+                                    modifier = Modifier.padding(bottom = 12.dp)
+                                )
+
+                                // Shelter 1
+                                Text(
+                                    "1. ${routes[0].shelter} - ${routes[0].distanceKm} km",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    modifier = Modifier.padding(vertical = 4.dp)
+                                )
+
+                                // Shelter 2
+                                Text(
+                                    "2. ${routes[1].shelter} - ${routes[1].distanceKm} km",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    modifier = Modifier.padding(vertical = 4.dp)
+                                )
+
+                                // Shelter 3
+                                Text(
+                                    "3. ${routes[2].shelter} - ${routes[2].distanceKm} km",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    modifier = Modifier.padding(vertical = 4.dp)
+                                )
+
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    "All shelters are HIGH priority",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    fontWeight = FontWeight.Bold
                                 )
                             }
-                            items(otherShelters) { route ->
-                                EvacuationRouteCard(route = route)
-                            }
                         }
-
-                        // NEW: Shelter Statistics
-                        item { ShelterStatistics(routes = routes) }
-                    } else {
-                        item { Text("No evacuation routes available at the moment.") }
                     }
 
-                    // Section 5: Immediate Actions
-                    item { ReportSectionHeader(title = "4. Immediate Actions") }
-                    item { ImmediateActionsContent(data.riskAssessment) }
+                    // Section 4: Immediate Actions
+                    item { ReportSectionHeader(title = "3. Immediate Actions") }
+                    item { ImmediateActionsContent() }
 
-                    // Section 6: Final Warning
+                    // Section 5: Final Warning
                     item { FinalWarning() }
                 }
             }
@@ -145,7 +167,6 @@ fun UrgentHeader(totalRisk: Double?) {
         )
         Spacer(modifier = Modifier.height(4.dp))
 
-        // Display actual risk percentage from JSON
         totalRisk?.let { risk ->
             Text(
                 "Overall Risk: ${(risk * 100).toInt()}%",
@@ -180,7 +201,6 @@ fun ReportSectionHeader(title: String) {
 @Composable
 fun RiskAnalysisContent(assessment: RiskAssessment) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        // Enhanced with exact percentages from JSON
         RiskInfoItem(
             label = "Total Risk Score",
             value = "${(assessment.totalRisk * 100).toInt()}%",
@@ -199,9 +219,6 @@ fun RiskAnalysisContent(assessment: RiskAssessment) {
             description = "The population density in your area contributes moderately to the overall risk.",
             icon = Icons.Default.People
         )
-
-        // NEW: Detailed risk breakdown
-        DetailedRiskBreakdown(assessment)
     }
 }
 
@@ -229,115 +246,143 @@ fun RiskInfoItem(label: String, value: String, description: String, icon: ImageV
     }
 }
 
-// NEW: Detailed risk breakdown
 @Composable
-fun DetailedRiskBreakdown(assessment: RiskAssessment) {
+fun EvacuationRouteCard(route: EvacuationRoute, index: Int) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(2.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        elevation = CardDefaults.cardElevation(4.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (index == 1) MaterialTheme.colorScheme.primaryContainer
+            else MaterialTheme.colorScheme.surfaceVariant
+        )
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
+            // Header with shelter number and priority
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "Shelter $index",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Chip(label = route.priority, color = MaterialTheme.colorScheme.error)
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Shelter details
+            Row(verticalAlignment = Alignment.Top) {
+                Icon(
+                    Icons.Default.LocationOn,
+                    contentDescription = "Location",
+                    modifier = Modifier.size(24.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        route.shelter,
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        "Distance: ${route.distanceKm} km",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    // Recommendation for closest shelter
+                    if (index == 1) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            "⭐ Recommended - Closest shelter",
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun ShelterItem(number: Int, name: String, distance: Double, priority: String) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(4.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (number == 1) MaterialTheme.colorScheme.primaryContainer
+            else MaterialTheme.colorScheme.surfaceVariant
+        )
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Shelter Number
             Text(
-                "Detailed Risk Breakdown",
+                "Shelter $number:",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(bottom = 12.dp)
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.width(100.dp)
             )
 
-            // Elevation Risk Detail
-            RiskDetailItem(
-                riskName = "Elevation Risk",
-                percentage = (assessment.elevationRisk * 100).toInt(),
-                explanation = "Based on your location's altitude and proximity to water bodies"
-            )
+            Spacer(modifier = Modifier.width(16.dp))
 
-            // Population Risk Detail
-            RiskDetailItem(
-                riskName = "Population Risk",
-                percentage = (assessment.populationRisk * 100).toInt(),
-                explanation = "Based on local population density and infrastructure"
-            )
+            // Shelter Details
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    name,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    "Distance: ${distance} km",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Text(
+                    "Priority: $priority",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
 
-            // Combined Risk Detail
-            RiskDetailItem(
-                riskName = "Combined Risk Score",
-                percentage = (assessment.totalRisk * 100).toInt(),
-                explanation = "Overall assessment combining all risk factors"
-            )
+                // Recommendation for closest shelter
+                if (number == 1) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        "⭐ Recommended - Closest shelter",
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+
+            // Priority Chip
+            Chip(label = priority, color = MaterialTheme.colorScheme.error)
         }
     }
 }
 
 @Composable
-fun RiskDetailItem(riskName: String, percentage: Int, explanation: String) {
-    Column(modifier = Modifier.padding(vertical = 8.dp)) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(riskName, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
-            Text("$percentage%", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
-        }
-        Text(explanation, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-    }
-}
-
-// NEW: Risk Interpretation
-@Composable
-fun RiskInterpretationContent(assessment: RiskAssessment) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(8.dp))
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        Text(
-            "What Your Risk Levels Mean:",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold
-        )
-
-        // Elevation risk interpretation
-        InterpretationItem(
-            title = "Elevation Risk: ${(assessment.elevationRisk * 100).toInt()}%",
-            description = "Your location has very high flood susceptibility. Immediate preparation is advised."
-        )
-
-        // Population risk interpretation
-        InterpretationItem(
-            title = "Population Risk: ${(assessment.populationRisk * 100).toInt()}%",
-            description = "Moderate population density may affect evacuation timing and route availability."
-        )
-
-        // Total risk interpretation
-        InterpretationItem(
-            title = "Overall Risk: ${(assessment.totalRisk * 100).toInt()}%",
-            description = "High combined risk level requires immediate attention and preparedness."
-        )
-    }
-}
-
-@Composable
-fun InterpretationItem(title: String, description: String) {
-    Column {
-        Text(title, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
-        Text(description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-    }
-}
-
-// NEW: Shelter Statistics
-@Composable
-fun ShelterStatistics(routes: List<EvacuationRoute>) {
+fun ShelterSummary(routes: List<EvacuationRoute>) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         elevation = CardDefaults.cardElevation(2.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
-                "Shelter Statistics",
+                "Shelter Summary",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(bottom = 12.dp)
@@ -345,32 +390,31 @@ fun ShelterStatistics(routes: List<EvacuationRoute>) {
 
             val closestDistance = routes.minByOrNull { it.distanceKm }?.distanceKm ?: 0.0
             val averageDistance = routes.map { it.distanceKm }.average()
-            val highPriorityCount = routes.count { it.priority == "HIGH" }
 
-            StatItem(
+            SummaryItem(
+                label = "Total Shelters Available",
+                value = "${routes.size} shelters"
+            )
+            SummaryItem(
                 label = "Closest Shelter Distance",
                 value = "${String.format("%.2f", closestDistance)} km"
             )
-            StatItem(
-                label = "Average Shelter Distance",
+            SummaryItem(
+                label = "Average Distance",
                 value = "${String.format("%.2f", averageDistance)} km"
             )
-            StatItem(
-                label = "Available Shelters",
-                value = "${routes.size} locations"
-            )
-            StatItem(
-                label = "High Priority Shelters",
-                value = "$highPriorityCount shelters"
+            SummaryItem(
+                label = "All Shelters Priority",
+                value = "HIGH"
             )
         }
     }
 }
 
 @Composable
-fun StatItem(label: String, value: String) {
+fun SummaryItem(label: String, value: String) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -380,62 +424,7 @@ fun StatItem(label: String, value: String) {
 }
 
 @Composable
-fun PrimaryShelterCard(route: EvacuationRoute) {
-    Column {
-        Text(
-            "Primary Recommendation (Closest)",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(bottom = 4.dp)
-        )
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .border(2.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(12.dp)),
-            elevation = CardDefaults.cardElevation(4.dp)
-        ) {
-            Row(
-                modifier = Modifier.padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(Icons.Default.Star, "Primary Shelter", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(40.dp))
-                Spacer(modifier = Modifier.width(16.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(route.shelter, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge)
-                    Text("Distance: ${route.distanceKm} km", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text("Priority: ${route.priority}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
-                }
-                Chip(label = route.priority, color = MaterialTheme.colorScheme.error)
-            }
-        }
-    }
-}
-
-@Composable
-fun EvacuationRouteCard(route: EvacuationRoute) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(2.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-    ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(Icons.Default.Shield, "Shelter", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(40.dp))
-            Spacer(modifier = Modifier.width(16.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(route.shelter, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyLarge)
-                Text("Distance: ${route.distanceKm} km", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text("Priority: ${route.priority}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
-            }
-            Chip(label = route.priority, color = MaterialTheme.colorScheme.error)
-        }
-    }
-}
-
-@Composable
-fun ImmediateActionsContent(riskAssessment: RiskAssessment?) {
+fun ImmediateActionsContent() {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -443,19 +432,18 @@ fun ImmediateActionsContent(riskAssessment: RiskAssessment?) {
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        ActionItem(text = "Prepare to Evacuate: Gather your emergency kit and important documents.")
-        ActionItem(text = "Stay Informed: Monitor local news and official alerts for evacuation orders.")
-        ActionItem(text = "Plan Your Route: Identify the safest path to your chosen shelter, avoiding low-lying roads or areas already affected by water.")
+        Text(
+            "Recommended Actions:",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
 
-        // Enhanced actions based on actual risk data
-        riskAssessment?.let {
-            if (it.elevationRisk > 0.8) {
-                ActionItem(text = "⚠️ Critical Elevation Risk: Due to very high elevation risk (${(it.elevationRisk * 100).toInt()}%), consider immediate evacuation preparation.")
-            }
-            if (it.totalRisk > 0.4) {
-                ActionItem(text = "🚨 High Overall Risk: With ${(it.totalRisk * 100).toInt()}% overall risk, be prepared to evacuate as soon as official orders are issued.")
-            }
-        }
+        ActionItem(text = "Choose the closest shelter (Shelter 1: 0.44 km) for fastest evacuation")
+        ActionItem(text = "Have alternative routes planned in case your primary route is blocked")
+        ActionItem(text = "Prepare emergency kit with essentials: documents, medicines, water, food")
+        ActionItem(text = "Monitor official alerts and evacuate when instructed by authorities")
+        ActionItem(text = "Avoid low-lying areas and flooded roads during evacuation")
     }
 }
 
@@ -470,12 +458,30 @@ fun ActionItem(text: String) {
 
 @Composable
 fun FinalWarning() {
-    Text(
-        "Your safety is the number one priority. Do not wait until it is too late.",
-        fontWeight = FontWeight.Bold,
-        textAlign = TextAlign.Center,
-        modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp)
-    )
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            "🚨 IMPORTANT",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.error
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            "Your safety is the number one priority. Do not wait until it is too late to evacuate.",
+            fontWeight = FontWeight.Medium,
+            textAlign = TextAlign.Center
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            "All three shelters are within 1 km distance. Choose the closest safe route.",
+            style = MaterialTheme.typography.bodySmall,
+            textAlign = TextAlign.Center,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
