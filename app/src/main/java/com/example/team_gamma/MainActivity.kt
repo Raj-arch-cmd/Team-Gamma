@@ -12,12 +12,15 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -26,11 +29,15 @@ import androidx.core.content.ContextCompat
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
-import androidx.navigation.compose.*
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
+import com.example.resqtech.ui.theme.screens.LoudAlarmScreen
+import com.example.team_gamma.auth.AuthViewModel
 import com.example.team_gamma.component.SosConfirmationDialog
 import com.example.team_gamma.data.*
 import com.example.team_gamma.loginscreen.LoginScreen
-import com.example.team_gamma.loginscreen.ManualAlertViewModel
 import com.example.team_gamma.loginscreen.SignUpScreen
 import com.example.team_gamma.onboarding.EmergencyContactScreen
 import com.example.team_gamma.onboarding.WelcomeScreen
@@ -39,7 +46,6 @@ import com.example.team_gamma.ui.theme.TeamGammaTheme
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlin.getValue
 
 data class BottomNavItem(val label: String, val icon: ImageVector, val route: String)
 
@@ -51,9 +57,8 @@ class MainActivity : ComponentActivity() {
     private val hubViewModel by viewModels<HubViewModel>()
     private val alertsViewModel by viewModels<AlertsViewModel>()
     private val localReportsViewModel by viewModels<LocalReportsViewModel>()
-
-    // NEW: Add the ViewModel for the manual demo
     private val manualAlertViewModel by viewModels<ManualAlertViewModel>()
+    private val authViewModel by viewModels<AuthViewModel>()
 
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -66,94 +71,118 @@ class MainActivity : ComponentActivity() {
                 else -> isSystemInDarkTheme()
             }
 
-            TeamGammaTheme (darkTheme = useDarkTheme) {
+            TeamGammaTheme(darkTheme = useDarkTheme) {
                 val navController = rememberNavController()
                 val navBackStackEntry by navController.currentBackStackEntryAsState()
                 val currentDestination = navBackStackEntry?.destination
 
-                val bottomBarRoutes = listOf("dashboard", "alerts", "local_reports", "profile")
-                val showBottomBar = currentDestination?.route in bottomBarRoutes
+                // ✅ UPDATED LOGIC: Determine the correct start destination
+                val isFirstLaunch by settingsViewModel.isFirstLaunch.collectAsState()
+                val currentUser by authViewModel.currentUser.collectAsState()
+                var startDestination by remember { mutableStateOf<String?>(null) }
 
-                var showSosDialog by remember { mutableStateOf(false) }
-                val smsPermissionLauncher = rememberLauncherForActivityResult(
-                    contract = ActivityResultContracts.RequestPermission(),
-                    onResult = { granted ->
-                        if (granted) showSosDialog = true
-                        else Toast.makeText(this, "SMS permission is required for the SOS feature.", Toast.LENGTH_LONG).show()
+                LaunchedEffect(isFirstLaunch, currentUser) {
+                    if (isFirstLaunch != null) { // Wait for DataStore to load
+                        startDestination = when {
+                            isFirstLaunch == true -> "welcome" // First priority: Permissions onboarding
+                            currentUser != null -> "dashboard"  // If not first launch & logged in
+                            else -> "login"             // If not first launch & not logged in
+                        }
                     }
-                )
-
-                if (showSosDialog) {
-                    SosConfirmationDialog(
-                        onConfirm = {
-                            showSosDialog = false
-                            sendSosMessage()
-                        },
-                        onDismiss = { showSosDialog = false }
-                    )
                 }
 
-                Scaffold(
-                    bottomBar = {
-                        if (showBottomBar) {
-                            NavigationBar {
-                                val items = listOf(
-                                    BottomNavItem("Home", Icons.Default.Home, "dashboard"),
-                                    BottomNavItem("Alerts", Icons.Default.Warning, "alerts"),
-                                    BottomNavItem("Reports", Icons.Default.Campaign, "local_reports"),
-                                    BottomNavItem("Profile", Icons.Default.Person, "profile")
-                                )
-                                items.forEach { item ->
-                                    val isSelected = currentDestination?.hierarchy?.any { it.route == item.route } == true
-                                    NavigationBarItem(
-                                        icon = { Icon(item.icon, contentDescription = item.label) },
-                                        label = { Text(item.label) },
-                                        selected = isSelected,
-                                        onClick = {
-                                            navController.navigate(item.route) {
-                                                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                                                launchSingleTop = true
-                                                restoreState = true
-                                            }
-                                        }
+                // Only show UI when the start destination is determined
+                if (startDestination != null) {
+                    val bottomBarRoutes = listOf("dashboard", "alerts", "local_reports", "profile")
+                    val showBottomBar = currentDestination?.route in bottomBarRoutes
+
+                    var showSosDialog by remember { mutableStateOf(false) }
+                    val smsPermissionLauncher = rememberLauncherForActivityResult(
+                        contract = ActivityResultContracts.RequestPermission(),
+                        onResult = { granted ->
+                            if (granted) showSosDialog = true
+                            else Toast.makeText(this, "SMS permission is required.", Toast.LENGTH_LONG).show()
+                        }
+                    )
+
+                    if (showSosDialog) {
+                        SosConfirmationDialog(
+                            onConfirm = {
+                                showSosDialog = false
+                                sendSosMessage()
+                            },
+                            onDismiss = { showSosDialog = false }
+                        )
+                    }
+
+                    Scaffold(
+                        bottomBar = {
+                            if (showBottomBar) {
+                                NavigationBar {
+                                    val items = listOf(
+                                        BottomNavItem("Home", Icons.Default.Home, "dashboard"),
+                                        BottomNavItem("Alerts", Icons.Default.Warning, "alerts"),
+                                        BottomNavItem("Reports", Icons.Default.Campaign, "local_reports"),
+                                        BottomNavItem("Profile", Icons.Default.Person, "profile")
                                     )
+                                    items.forEach { item ->
+                                        val isSelected = currentDestination?.hierarchy?.any { it.route == item.route } == true
+                                        NavigationBarItem(
+                                            icon = { Icon(item.icon, contentDescription = item.label) },
+                                            label = { Text(item.label) },
+                                            selected = isSelected,
+                                            onClick = {
+                                                navController.navigate(item.route) {
+                                                    popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                                    launchSingleTop = true
+                                                    restoreState = true
+                                                }
+                                            }
+                                        )
+                                    }
                                 }
                             }
-                        }
-                    },
-                    floatingActionButton = {
-                        if (showBottomBar) {
-                            FloatingActionButton(
-                                onClick = {
-                                    if (ContextCompat.checkSelfPermission(this, Manifest.permission.SEND_SMS) == PackageManager.PERMISSION_GRANTED) {
-                                        showSosDialog = true
-                                    } else {
-                                        smsPermissionLauncher.launch(Manifest.permission.SEND_SMS)
-                                    }
-                                },
-                                containerColor = Color.Red,
-                                contentColor = Color.White,
-                                modifier = Modifier.size(72.dp)
-                            ) {
-                                Icon(Icons.Default.Sos, contentDescription = "SOS", modifier = Modifier.size(32.dp))
+                        },
+                        floatingActionButton = {
+                            if (showBottomBar) {
+                                FloatingActionButton(
+                                    onClick = {
+                                        if (ContextCompat.checkSelfPermission(this, Manifest.permission.SEND_SMS) == PackageManager.PERMISSION_GRANTED) {
+                                            showSosDialog = true
+                                        } else {
+                                            smsPermissionLauncher.launch(Manifest.permission.SEND_SMS)
+                                        }
+                                    },
+                                    containerColor = Color.Red,
+                                    contentColor = Color.White,
+                                    modifier = Modifier.size(72.dp)
+                                ) {
+                                    Icon(Icons.Default.Sos, contentDescription = "SOS", modifier = Modifier.size(32.dp))
+                                }
                             }
-                        }
-                    },
-                    floatingActionButtonPosition = FabPosition.Center
-                ) { innerPadding ->
-                    AppNavigation(
-                        modifier = Modifier.padding(innerPadding),
-                        navController = navController,
-                        contactsViewModel = contactsViewModel,
-                        profileViewModel = profileViewModel,
-                        aiAssistantViewModel = aiAssistantViewModel,
-                        settingsViewModel = settingsViewModel,
-                        hubViewModel = hubViewModel,
-                        alertsViewModel = alertsViewModel,
-                        localReportsViewModel = localReportsViewModel,
-                        // UPDATED: Pass the new manual ViewModel
-                        manualAlertViewModel = manualAlertViewModel
-                    )
+                        },
+                        floatingActionButtonPosition = FabPosition.Center
+                    ) { innerPadding ->
+                        AppNavigation(
+                            modifier = Modifier.padding(innerPadding),
+                            navController = navController,
+                            contactsViewModel = contactsViewModel,
+                            profileViewModel = profileViewModel,
+                            aiAssistantViewModel = aiAssistantViewModel,
+                            settingsViewModel = settingsViewModel,
+                            hubViewModel = hubViewModel,
+                            alertsViewModel = alertsViewModel,
+                            localReportsViewModel = localReportsViewModel,
+                            manualAlertViewModel = manualAlertViewModel,
+                            authViewModel = authViewModel,
+                            startDestination = startDestination!!
+                        )
+                    }
+                } else {
+                    // Show a loading screen while we determine the route
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator()
+                    }
                 }
             }
         }
@@ -163,7 +192,7 @@ class MainActivity : ComponentActivity() {
     @SuppressLint("MissingPermission")
     private fun sendSosMessage() {
         CoroutineScope(Dispatchers.Main).launch {
-            val message = "Emergency! I need help. This is an automated alert from ResQTech."
+            val message = "🚨 Emergency! I need help. This is an automated alert from ResQTech."
             val smsManager = SmsManager.getDefault()
 
             try {
@@ -178,7 +207,6 @@ class MainActivity : ComponentActivity() {
                         Toast.makeText(this@MainActivity, "SOS sent to ${contact.name}", Toast.LENGTH_SHORT).show()
                     } catch (e: Exception) {
                         Toast.makeText(this@MainActivity, "Failed to send to ${contact.name}", Toast.LENGTH_SHORT).show()
-                        e.printStackTrace()
                     }
                 }
             } catch (e: Exception) {
@@ -199,20 +227,22 @@ fun AppNavigation(
     hubViewModel: HubViewModel,
     alertsViewModel: AlertsViewModel,
     localReportsViewModel: LocalReportsViewModel,
-    // UPDATED: Receive the new manual ViewModel
-    manualAlertViewModel: ManualAlertViewModel
+    manualAlertViewModel: ManualAlertViewModel,
+    authViewModel: AuthViewModel,
+    startDestination: String
 ) {
     NavHost(
         navController = navController,
-        startDestination = "login", // Set login as the starting screen
+        startDestination = startDestination,
         modifier = modifier
     ) {
-        // Login and Signup Routes
+        // Auth routes
         composable("login") {
             LoginScreen(
                 navController = navController,
                 onLoginSuccess = {
-                    navController.navigate("dashboard") {
+                    // ✅ Navigate to emergency_contact_setup AFTER successful login
+                    navController.navigate("emergency_contact_setup") {
                         popUpTo("login") { inclusive = true }
                     }
                 }
@@ -222,42 +252,83 @@ fun AppNavigation(
             SignUpScreen(
                 navController = navController,
                 onSignUpSuccess = {
-                    navController.navigate("dashboard") {
+                    // ✅ Navigate to emergency_contact_setup AFTER successful signup
+                    navController.navigate("emergency_contact_setup") {
                         popUpTo("signup") { inclusive = true }
                     }
                 }
             )
         }
 
-        // Onboarding Routes
-        composable("welcome") { WelcomeScreen(onPermissionsGranted = { navController.navigate("emergency_contact_setup") }) }
-        composable("emergency_contact_setup") { EmergencyContactScreen(contactsViewModel = contactsViewModel, onContactsConfirmed = { navController.navigate("dashboard") }, onNavigateBack = { navController.popBackStack() }) }
+        // Onboarding Flow
+        composable("welcome") {
+            WelcomeScreen(onPermissionsGranted = {
+                // ✅ After permissions are granted, navigate to Login/Signup
+                navController.navigate("login") {
+                    popUpTo("welcome") { inclusive = true } // Clear WelcomeScreen
+                }
+                // Also, ensure any existing user is logged out so they face the login screen
+                authViewModel.logout()
+            })
+        }
 
-        // Main App Routes
+        // ✅ Emergency Contact screen now comes AFTER Login/Signup for first-timers
+        composable("emergency_contact_setup") {
+            EmergencyContactScreen(
+                contactsViewModel = contactsViewModel,
+                onContactsConfirmed = {
+                    // Mark onboarding as complete AFTER contacts are set up
+                    settingsViewModel.setFirstLaunchCompleted()
+                    // Finally navigate to dashboard
+                    navController.navigate("dashboard") {
+                        popUpTo("emergency_contact_setup") { inclusive = true } // Clear contacts screen
+                    }
+                },
+                onNavigateBack = { navController.popBackStack() } // Keep back navigation if needed
+            )
+        }
+
+
+        // Main App Screens (remain unchanged)
         composable("dashboard") {
             PreparednessHubScreen(
                 navController = navController,
                 hubViewModel = hubViewModel,
-                // UPDATED: Pass the new manual ViewModel
-                manualAlertViewModel = manualAlertViewModel // This is the correct parameter name
+                manualAlertViewModel = manualAlertViewModel
             )
         }
-
-        // NEW: Add the route for the disaster detail screen
-        composable("disaster_detail") {
-            DisasterDetailScreen(navController = navController)
+        composable("alerts") { AlertsScreen(viewModel = alertsViewModel) }
+        composable("local_reports") {
+            LocalReportsScreen(navController = navController, viewModel = localReportsViewModel)
+        }
+        composable("create_report") {
+            CreateReportScreen(navController = navController, viewModel = localReportsViewModel)
+        }
+        composable("profile") {
+            ProfileScreen(
+                profileViewModel = profileViewModel,
+                navController = navController,
+                authViewModel = authViewModel
+            )
+        }
+        composable("loud_alarm") {
+            LoudAlarmScreen(onNavigateBack = { navController.popBackStack() })
         }
 
-        composable("manage_contacts") { ManageContactsScreen(contactsViewModel = contactsViewModel, onNavigateBack = { navController.popBackStack() }) }
-        composable("dos_and_donts") { DosAndDontsScreen(onNavigateBack = { navController.popBackStack() }) }
-        composable("loud_alarm") { LoudAlarmScreen(onNavigateBack = { navController.popBackStack() }) }
-        composable("ai_assistant") { AiAssistantScreen(viewModel = aiAssistantViewModel, onNavigateBack = { navController.popBackStack() }) }
-        composable("map") { MapScreen() }
-        composable("alerts") { AlertsScreen(viewModel = alertsViewModel) }
-        composable("local_reports") { LocalReportsScreen(navController = navController, viewModel = localReportsViewModel) }
-        composable("create_report") { CreateReportScreen(navController = navController, viewModel = localReportsViewModel) }
-        composable("profile") { ProfileScreen(profileViewModel = profileViewModel, navController = navController) }
-        composable("settings") { SettingsScreen(viewModel = settingsViewModel, onNavigateBack = { navController.popBackStack() }) }
+        composable("nearest_hospital") {
+            NearestHospitalScreen(navController = navController)
+        }
+
+        composable("settings") {
+            SettingsScreen(viewModel = settingsViewModel, onNavigateBack = { navController.popBackStack() })
+        }
         composable("information") { InformationScreen(navController = navController) }
+        composable("dos_and_donts") { DosAndDontsScreen(onNavigateBack = { navController.popBackStack() }) }
+        composable("manage_contacts") {
+            ManageContactsScreen(contactsViewModel = contactsViewModel, onNavigateBack = { navController.popBackStack() })
+        }
+        composable("ai_assistant") {
+            AiAssistantScreen(viewModel = aiAssistantViewModel, onNavigateBack = { navController.popBackStack() })
+        }
     }
 }

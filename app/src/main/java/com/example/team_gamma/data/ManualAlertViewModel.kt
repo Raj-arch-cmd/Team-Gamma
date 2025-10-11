@@ -1,7 +1,4 @@
-package com.example.team_gamma.loginscreen
-
-// This file should be located at: app/src/main/java/com/example/team_gamma/data/ManualAlertViewModel.kt
-
+package com.example.team_gamma.data
 
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.ViewModel
@@ -33,7 +30,6 @@ class ManualAlertViewModel : ViewModel() {
     val uiState: StateFlow<ManualAlertState> = _uiState
 
     // --- These are the "buttons" on your remote control ---
-
     fun setNoRisk() { _uiState.value = ManualAlertState.NoRisk }
     fun setLowRisk() { _uiState.value = ManualAlertState.LowRisk }
     fun setMediumRisk() { _uiState.value = ManualAlertState.MediumRisk }

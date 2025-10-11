@@ -1,6 +1,5 @@
 package com.example.team_gamma.screens
 
-
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -25,6 +24,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.rememberAsyncImagePainter
 import com.example.team_gamma.R
+import com.example.team_gamma.auth.AuthViewModel
 import com.example.team_gamma.data.ProfileViewModel
 import java.io.File
 import java.io.FileOutputStream
@@ -35,6 +35,7 @@ import java.util.*
 @Composable
 fun ProfileScreen(
     profileViewModel: ProfileViewModel = viewModel(),
+    authViewModel: AuthViewModel = viewModel(),
     navController: NavController
 ) {
     val context = LocalContext.current
@@ -58,12 +59,11 @@ fun ProfileScreen(
 
     var isEditing by remember { mutableStateOf(false) }
 
-    // Image Picker - FIXED: Save image to app's internal storage
+    // Image Picker - Save image to internal storage
     val imagePicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent(),
         onResult = { uri ->
             uri?.let { selectedUri ->
-                // Convert the content URI to a file path in app's internal storage
                 val filePath = saveImageToInternalStorage(context, selectedUri)
                 filePath?.let { path ->
                     profileViewModel.updateProfileImageUri(path)
@@ -112,14 +112,15 @@ fun ProfileScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(rememberScrollState()),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Profile Completion Card
+            // Profile Completion
             ProfileCompletionCard(completionPercentage = profileCompletion)
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Profile Header with Image in Center
+            // Header Section
             ProfileHeaderSection(
                 userName = userName,
                 profileImageUri = profileImageUri,
@@ -164,36 +165,56 @@ fun ProfileScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(40.dp))
+
+            // ✅ Logout Button (Full width and styled)
+            Button(
+                onClick = {
+                    authViewModel.logout()
+                    navController.navigate("login") {
+                        popUpTo("home") { inclusive = true }
+                    }
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.errorContainer
+                )
+            ) {
+                Icon(
+                    Icons.Default.Logout,
+                    contentDescription = "Logout",
+                    tint = MaterialTheme.colorScheme.onErrorContainer
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    "Logout",
+                    color = MaterialTheme.colorScheme.onErrorContainer,
+                    style = MaterialTheme.typography.bodyLarge
+                )
+            }
+
+            Spacer(modifier = Modifier.height(40.dp))
         }
     }
 }
 
-// NEW FUNCTION: Save image to app's internal storage
+// Save image to internal storage
 private fun saveImageToInternalStorage(context: android.content.Context, uri: Uri): String? {
     return try {
         val inputStream = context.contentResolver.openInputStream(uri)
         val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
         val imageFileName = "profile_image_$timeStamp.jpg"
-
-        // Save to app's internal storage
         val file = File(context.filesDir, imageFileName)
         val outputStream = FileOutputStream(file)
-
-        inputStream?.use { input ->
-            outputStream.use { output ->
-                input.copyTo(output)
-            }
-        }
-
-        // Return the file path that we can use later
+        inputStream?.use { input -> outputStream.use { output -> input.copyTo(output) } }
         file.absolutePath
     } catch (e: Exception) {
         e.printStackTrace()
         null
     }
 }
-
 
 @Composable
 fun ProfileCompletionCard(completionPercentage: Int) {
@@ -210,8 +231,7 @@ fun ProfileCompletionCard(completionPercentage: Int) {
             Text(
                 "Profile Completion: $completionPercentage%",
                 style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                fontWeight = FontWeight.Medium
             )
             Spacer(modifier = Modifier.height(8.dp))
             LinearProgressIndicator(
@@ -221,18 +241,10 @@ fun ProfileCompletionCard(completionPercentage: Int) {
                     .height(8.dp),
                 color = MaterialTheme.colorScheme.primary
             )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                if (completionPercentage < 70) "Complete your profile for better emergency assistance"
-                else "Great! Your profile is well maintained",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-            )
         }
     }
 }
 
-// FIXED: Update ProfileHeaderSection to handle file paths
 @Composable
 fun ProfileHeaderSection(
     userName: String,
@@ -240,14 +252,8 @@ fun ProfileHeaderSection(
     isEditing: Boolean,
     onEditImage: () -> Unit
 ) {
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        // Profile Image with Edit Button
-        Box(
-            modifier = Modifier.size(120.dp)
-        ) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(modifier = Modifier.size(120.dp)) {
             Card(
                 modifier = Modifier
                     .size(120.dp)
@@ -255,15 +261,10 @@ fun ProfileHeaderSection(
                 shape = CircleShape,
                 elevation = CardDefaults.cardElevation(8.dp)
             ) {
-                // FIXED: Handle both file paths and URIs
                 if (!profileImageUri.isNullOrEmpty()) {
                     val imageModel = if (profileImageUri.startsWith("content://")) {
-                        // It's a content URI (temporary)
                         Uri.parse(profileImageUri)
-                    } else {
-                        // It's a file path from internal storage (persistent)
-                        File(profileImageUri)
-                    }
+                    } else File(profileImageUri)
 
                     Image(
                         painter = rememberAsyncImagePainter(model = imageModel),
@@ -285,33 +286,23 @@ fun ProfileHeaderSection(
                 }
             }
 
-            // Edit Image Button
             if (isEditing) {
                 FloatingActionButton(
                     onClick = onEditImage,
                     modifier = Modifier
                         .size(40.dp)
                         .align(Alignment.BottomEnd),
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary
+                    containerColor = MaterialTheme.colorScheme.primary
                 ) {
-                    Icon(
-                        Icons.Default.CameraAlt,
-                        contentDescription = "Edit Photo",
-                        modifier = Modifier.size(20.dp)
-                    )
+                    Icon(Icons.Default.CameraAlt, contentDescription = "Edit Photo")
                 }
             }
         }
-
         Spacer(modifier = Modifier.height(16.dp))
-
-        // Name and Blood Type
         Text(
             userName,
             style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface
+            fontWeight = FontWeight.Bold
         )
     }
 }
@@ -336,44 +327,18 @@ fun ViewProfileDetails(
         modifier = Modifier.padding(horizontal = 16.dp),
         verticalArrangement = Arrangement.spacedBy(24.dp)
     ) {
-        // Private Information Section
-        ProfileSectionCard(
-            title = "Private Information",
-            items = listOf(
-                "Email" to email,
-                "Birthdate" to dateOfBirth,
-                "Gender" to gender,
-                "Weight" to weight,
-                "Height" to height
-            )
-        )
-
-        // Contact Information Section
-        ProfileSectionCard(
-            title = "Contact Information",
-            items = listOf(
-                "Phone" to phone,
-                "Emergency Contact" to emergencyContact,
-                "Address" to address
-            )
-        )
-
-        // Medical Information Section
-        ProfileSectionCard(
-            title = "Medical Information",
-            items = listOf(
-                "Blood Type" to bloodType,
-                "Allergies" to allergies,
-                "Medical Conditions" to medicalConditions
-            )
-        )
-
-        // Emergency Instructions
+        ProfileSectionCard("Private Information", listOf(
+            "Email" to email, "Birthdate" to dateOfBirth,
+            "Gender" to gender, "Weight" to weight, "Height" to height
+        ))
+        ProfileSectionCard("Contact Information", listOf(
+            "Phone" to phone, "Emergency Contact" to emergencyContact, "Address" to address
+        ))
+        ProfileSectionCard("Medical Information", listOf(
+            "Blood Type" to bloodType, "Allergies" to allergies, "Medical Conditions" to medicalConditions
+        ))
         if (emergencyInstructions.isNotBlank()) {
-            ProfileSectionCard(
-                title = "Emergency Instructions",
-                items = listOf("Special Instructions" to emergencyInstructions)
-            )
+            ProfileSectionCard("Emergency Instructions", listOf("Special Instructions" to emergencyInstructions))
         }
     }
 }
@@ -383,27 +348,19 @@ fun ProfileSectionCard(title: String, items: List<Pair<String, String>>) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         elevation = CardDefaults.cardElevation(4.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        )
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
             Text(
                 title,
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(bottom = 16.dp)
+                color = MaterialTheme.colorScheme.primary
             )
-
-            items.forEach { (label, value) ->
-                ProfileInfoRow(label = label, value = value)
-                if (label != items.last().first) {
-                    Divider(
-                        modifier = Modifier.padding(vertical = 12.dp),
-                        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
-                    )
-                }
+            Spacer(modifier = Modifier.height(12.dp))
+            items.forEachIndexed { index, (label, value) ->
+                ProfileInfoRow(label, value)
+                if (index != items.lastIndex) Divider(modifier = Modifier.padding(vertical = 12.dp))
             }
         }
     }
@@ -415,20 +372,8 @@ fun ProfileInfoRow(label: String, value: String) {
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(
-            label,
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Medium,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-            modifier = Modifier.weight(1f)
-        )
-        Text(
-            value,
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Normal,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.weight(1f)
-        )
+        Text(label, fontWeight = FontWeight.Medium)
+        Text(value)
     }
 }
 
@@ -449,7 +394,6 @@ fun EditProfileForm(
     address: String,
     emergencyInstructions: String
 ) {
-    // Create local state variables for each field to prevent cursor jumping
     var localUserName by remember { mutableStateOf(userName) }
     var localEmail by remember { mutableStateOf(email) }
     var localDateOfBirth by remember { mutableStateOf(dateOfBirth) }
@@ -464,108 +408,54 @@ fun EditProfileForm(
     var localAddress by remember { mutableStateOf(address) }
     var localEmergencyInstructions by remember { mutableStateOf(emergencyInstructions) }
 
-    Column(
-        modifier = Modifier.padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(20.dp)
-    ) {
-        // Private Information Section
-        ProfileEditSection(
-            title = "Private Information",
-            fields = listOf(
-                EditField("Name", localUserName,
-                    onValueChange = { newValue ->
-                        localUserName = newValue
-                        profileViewModel.updateUserName(newValue)
-                    }
-                ),
-                EditField("Email", localEmail,
-                    onValueChange = { newValue ->
-                        localEmail = newValue
-                        profileViewModel.updateEmail(newValue)
-                    }
-                ),
-                EditField("Birthdate", localDateOfBirth,
-                    onValueChange = { newValue ->
-                        localDateOfBirth = newValue
-                        profileViewModel.updateDateOfBirth(newValue)
-                    }
-                ),
-                EditField("Gender", localGender,
-                    onValueChange = { newValue ->
-                        localGender = newValue
-                        profileViewModel.updateGender(newValue)
-                    }
-                ),
-                EditField("Weight", localWeight,
-                    onValueChange = { newValue ->
-                        localWeight = newValue
-                        profileViewModel.updateWeight(newValue)
-                    }
-                ),
-                EditField("Height", localHeight,
-                    onValueChange = { newValue ->
-                        localHeight = newValue
-                        profileViewModel.updateHeight(newValue)
-                    }
-                )
-            )
-        )
+    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
+        ProfileEditSection("Private Information", listOf(
+            EditField("Name", localUserName) {
+                localUserName = it; profileViewModel.updateUserName(it)
+            },
+            EditField("Email", localEmail) {
+                localEmail = it; profileViewModel.updateEmail(it)
+            },
+            EditField("Birthdate", localDateOfBirth) {
+                localDateOfBirth = it; profileViewModel.updateDateOfBirth(it)
+            },
+            EditField("Gender", localGender) {
+                localGender = it; profileViewModel.updateGender(it)
+            },
+            EditField("Weight", localWeight) {
+                localWeight = it; profileViewModel.updateWeight(it)
+            },
+            EditField("Height", localHeight) {
+                localHeight = it; profileViewModel.updateHeight(it)
+            }
+        ))
 
-        // Contact Information Section
-        ProfileEditSection(
-            title = "Contact Information",
-            fields = listOf(
-                EditField("Phone", localPhone,
-                    onValueChange = { newValue ->
-                        localPhone = newValue
-                        profileViewModel.updatePhone(newValue)
-                    }
-                ),
-                EditField("Emergency Contact", localEmergencyContact,
-                    onValueChange = { newValue ->
-                        localEmergencyContact = newValue
-                        profileViewModel.updateEmergencyContact(newValue)
-                    }
-                ),
-                EditField("Address", localAddress,
-                    onValueChange = { newValue ->
-                        localAddress = newValue
-                        profileViewModel.updateAddress(newValue)
-                    }
-                )
-            )
-        )
+        ProfileEditSection("Contact Information", listOf(
+            EditField("Phone", localPhone) {
+                localPhone = it; profileViewModel.updatePhone(it)
+            },
+            EditField("Emergency Contact", localEmergencyContact) {
+                localEmergencyContact = it; profileViewModel.updateEmergencyContact(it)
+            },
+            EditField("Address", localAddress) {
+                localAddress = it; profileViewModel.updateAddress(it)
+            }
+        ))
 
-        // Medical Information Section
-        ProfileEditSection(
-            title = "Medical Information",
-            fields = listOf(
-                EditField("Blood Type", localBloodType,
-                    onValueChange = { newValue ->
-                        localBloodType = newValue
-                        profileViewModel.updateBloodType(newValue)
-                    }
-                ),
-                EditField("Allergies", localAllergies,
-                    onValueChange = { newValue ->
-                        localAllergies = newValue
-                        profileViewModel.updateAllergies(newValue)
-                    }
-                ),
-                EditField("Medical Conditions", localMedicalConditions,
-                    onValueChange = { newValue ->
-                        localMedicalConditions = newValue
-                        profileViewModel.updateMedicalConditions(newValue)
-                    }
-                ),
-                EditField("Emergency Instructions", localEmergencyInstructions,
-                    onValueChange = { newValue ->
-                        localEmergencyInstructions = newValue
-                        profileViewModel.updateEmergencyInstructions(newValue)
-                    }
-                )
-            )
-        )
+        ProfileEditSection("Medical Information", listOf(
+            EditField("Blood Type", localBloodType) {
+                localBloodType = it; profileViewModel.updateBloodType(it)
+            },
+            EditField("Allergies", localAllergies) {
+                localAllergies = it; profileViewModel.updateAllergies(it)
+            },
+            EditField("Medical Conditions", localMedicalConditions) {
+                localMedicalConditions = it; profileViewModel.updateMedicalConditions(it)
+            },
+            EditField("Emergency Instructions", localEmergencyInstructions) {
+                localEmergencyInstructions = it; profileViewModel.updateEmergencyInstructions(it)
+            }
+        ))
     }
 }
 
@@ -573,20 +463,16 @@ fun EditProfileForm(
 fun ProfileEditSection(title: String, fields: List<EditField>) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(4.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        )
+        elevation = CardDefaults.cardElevation(4.dp)
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
             Text(
                 title,
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(bottom = 16.dp)
+                color = MaterialTheme.colorScheme.primary
             )
-
+            Spacer(modifier = Modifier.height(16.dp))
             fields.forEach { field ->
                 OutlinedTextField(
                     value = field.value,
@@ -595,7 +481,7 @@ fun ProfileEditSection(title: String, fields: List<EditField>) {
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 4.dp),
-                    singleLine = field.label != "Allergies" && field.label != "Medical Conditions" && field.label != "Emergency Instructions"
+                    singleLine = field.label !in listOf("Allergies", "Medical Conditions", "Emergency Instructions")
                 )
             }
         }

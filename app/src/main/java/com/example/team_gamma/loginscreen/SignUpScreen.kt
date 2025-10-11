@@ -1,11 +1,12 @@
-// In: app/src/main/java/com/example/team_gamma/loginscreen/SignUpScreen.kt
-
 package com.example.team_gamma.loginscreen
 
 import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.ClickableText
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -16,13 +17,12 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.ktx.auth
-import com.google.firebase.firestore.ktx.firestore
-import com.google.firebase.ktx.Firebase
+import com.example.team_gamma.auth.AuthViewModel
 
 @Composable
 fun SignUpScreen(navController: NavController, onSignUpSuccess: () -> Unit) {
@@ -30,25 +30,42 @@ fun SignUpScreen(navController: NavController, onSignUpSuccess: () -> Unit) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
-    var isLoading by remember { mutableStateOf(false) }
+    var passwordVisible by remember { mutableStateOf(false) }
+    var confirmPasswordVisible by remember { mutableStateOf(false) }
+
     val context = LocalContext.current
-    val auth: FirebaseAuth = remember { Firebase.auth }
-    val db = remember { Firebase.firestore }
+    val authViewModel: AuthViewModel = viewModel()
+    val authState by authViewModel.authState.collectAsState()
+
+    // ✅ Observe authentication state
+    LaunchedEffect(authState) {
+        when (authState) {
+            is AuthViewModel.AuthState.Success -> {
+                Toast.makeText(context, "Account created successfully!", Toast.LENGTH_SHORT).show()
+                onSignUpSuccess()
+            }
+            is AuthViewModel.AuthState.Error -> {
+                Toast.makeText(context, (authState as AuthViewModel.AuthState.Error).message, Toast.LENGTH_LONG).show()
+                authViewModel.resetAuthState()
+            }
+            else -> Unit
+        }
+    }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        // The vertical arrangement is handled by Spacers now
     ) {
-        Spacer(modifier = Modifier.height(64.dp)) // Pushes content down from the top
-        Text(
-            text = "Create Account",
-            style = MaterialTheme.typography.headlineMedium,
-            modifier = Modifier.fillMaxWidth()
-        )
+        Spacer(modifier = Modifier.height(32.dp))
+
+        Text("Create Account", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+        Text("Join ResQTech today", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
+
         Spacer(modifier = Modifier.height(24.dp))
+
+        val isLoading = authState is AuthViewModel.AuthState.Loading
 
         OutlinedTextField(
             value = fullName,
@@ -57,7 +74,9 @@ fun SignUpScreen(navController: NavController, onSignUpSuccess: () -> Unit) {
             modifier = Modifier.fillMaxWidth(),
             singleLine = true
         )
+
         Spacer(modifier = Modifier.height(8.dp))
+
         OutlinedTextField(
             value = email,
             onValueChange = { email = it },
@@ -66,67 +85,55 @@ fun SignUpScreen(navController: NavController, onSignUpSuccess: () -> Unit) {
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
             singleLine = true
         )
+
         Spacer(modifier = Modifier.height(8.dp))
+
         OutlinedTextField(
             value = password,
             onValueChange = { password = it },
             label = { Text("Password") },
             modifier = Modifier.fillMaxWidth(),
-            visualTransformation = PasswordVisualTransformation(),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+            visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+            trailingIcon = {
+                val icon = if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility
+                IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                    Icon(icon, null)
+                }
+            },
             singleLine = true
         )
+
         Spacer(modifier = Modifier.height(8.dp))
+
         OutlinedTextField(
             value = confirmPassword,
             onValueChange = { confirmPassword = it },
             label = { Text("Confirm Password") },
             modifier = Modifier.fillMaxWidth(),
-            visualTransformation = PasswordVisualTransformation(),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+            visualTransformation = if (confirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+            trailingIcon = {
+                val icon = if (confirmPasswordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility
+                IconButton(onClick = { confirmPasswordVisible = !confirmPasswordVisible }) {
+                    Icon(icon, null)
+                }
+            },
             singleLine = true
         )
 
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(24.dp))
 
         Button(
             onClick = {
-                // ... (Your existing Firebase signup logic is perfect)
-                if (fullName.isNotBlank() && email.isNotBlank() && password.isNotBlank() && confirmPassword.isNotBlank()) {
-                    if (password != confirmPassword) {
-                        Toast.makeText(context, "Passwords do not match.", Toast.LENGTH_SHORT).show()
-                        return@Button
-                    }
-                    // ... other checks
-                    isLoading = true
-                    auth.createUserWithEmailAndPassword(email, password)
-                        .addOnCompleteListener { task ->
-                            if (task.isSuccessful) {
-                                val user = auth.currentUser
-                                val uid = user?.uid
-                                if (uid != null) {
-                                    val userProfile = hashMapOf(
-                                        "fullName" to fullName,
-                                        "email" to email,
-                                    )
-                                    db.collection("users").document(uid)
-                                        .set(userProfile)
-                                        .addOnSuccessListener {
-                                            isLoading = false
-                                            onSignUpSuccess()
-                                        }
-                                        .addOnFailureListener { e ->
-                                            isLoading = false
-                                            Toast.makeText(context, "Failed to save profile: ${e.message}", Toast.LENGTH_LONG).show()
-                                        }
-                                }
-                            } else {
-                                isLoading = false
-                                Toast.makeText(context, "Sign up failed: ${task.exception?.message}", Toast.LENGTH_LONG).show()
-                            }
-                        }
+                if (fullName.isBlank() || email.isBlank() || password.isBlank() || confirmPassword.isBlank()) {
+                    Toast.makeText(context, "Please fill in all fields", Toast.LENGTH_SHORT).show()
+                } else if (!isValidEmail(email)) {
+                    Toast.makeText(context, "Invalid email address", Toast.LENGTH_SHORT).show()
+                } else if (password.length < 6) {
+                    Toast.makeText(context, "Password must be at least 6 characters", Toast.LENGTH_SHORT).show()
+                } else if (password != confirmPassword) {
+                    Toast.makeText(context, "Passwords do not match", Toast.LENGTH_SHORT).show()
                 } else {
-                    Toast.makeText(context, "Please fill in all fields.", Toast.LENGTH_SHORT).show()
+                    authViewModel.registerUser(fullName, email, password)
                 }
             },
             modifier = Modifier
@@ -134,14 +141,11 @@ fun SignUpScreen(navController: NavController, onSignUpSuccess: () -> Unit) {
                 .height(50.dp),
             enabled = !isLoading
         ) {
-            if (isLoading) {
-                CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary)
-            } else {
-                Text("CREATE ACCOUNT", fontSize = 16.sp)
-            }
+            if (isLoading) CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary)
+            else Text("CREATE ACCOUNT", fontSize = 16.sp)
         }
 
-        Spacer(modifier = Modifier.weight(1f)) // This pushes the next item to the bottom
+        Spacer(modifier = Modifier.weight(1f))
 
         Row {
             Text("Already have an account? ")
@@ -152,11 +156,13 @@ fun SignUpScreen(navController: NavController, onSignUpSuccess: () -> Unit) {
                         popUpTo("signup") { inclusive = true }
                     }
                 },
-                style = TextStyle(
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.Bold
-                )
+                style = TextStyle(color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
             )
         }
     }
+}
+
+private fun isValidEmail(email: String): Boolean {
+    val pattern = "[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}"
+    return email.matches(pattern.toRegex())
 }

@@ -1,4 +1,5 @@
-package com.example.team_gamma.screens
+package com.example.resqtech.ui.theme.screens
+
 
 import android.media.MediaPlayer
 import androidx.compose.foundation.layout.*
@@ -15,9 +16,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.team_gamma.R // Android Studio will likely add this automatically
+import com.example.team_gamma.R
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -25,7 +28,7 @@ fun LoudAlarmScreen(onNavigateBack: () -> Unit) {
     val context = LocalContext.current
     var isPlaying by remember { mutableStateOf(false) }
 
-    // This line will now correctly find your sound file
+    // A simple way to manage the MediaPlayer instance across recompositions.
     val mediaPlayer = remember {
         MediaPlayer.create(context, R.raw.emergency_alarm)
     }
@@ -108,3 +111,4 @@ fun LoudAlarmScreen(onNavigateBack: () -> Unit) {
         }
     }
 }
+
