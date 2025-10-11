@@ -18,42 +18,20 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.*
-import com.example.resqtech.data.*
-
-import com.example.resqtech.ui.theme.screens.*
 import com.example.team_gamma.component.SosConfirmationDialog
-import com.example.team_gamma.data.AiAssistantViewModel
-import com.example.team_gamma.data.AlertsViewModel
-import com.example.team_gamma.data.ContactsViewModel
-import com.example.team_gamma.data.HubViewModel
-import com.example.team_gamma.data.LocalReportsViewModel
-import com.example.team_gamma.data.ProfileViewModel
-import com.example.team_gamma.data.SettingsViewModel
+import com.example.team_gamma.data.*
 import com.example.team_gamma.onboarding.EmergencyContactScreen
 import com.example.team_gamma.onboarding.WelcomeScreen
-import com.example.team_gamma.screens.AiAssistantScreen
-import com.example.team_gamma.screens.AlertsScreen
-import com.example.team_gamma.screens.CreateReportScreen
-import com.example.team_gamma.screens.DosAndDontsScreen
-import com.example.team_gamma.screens.InformationScreen
-import com.example.team_gamma.screens.LocalReportsScreen
-import com.example.team_gamma.screens.LoudAlarmScreen
-import com.example.team_gamma.screens.ManageContactsScreen
-import com.example.team_gamma.screens.MapScreen
-import com.example.team_gamma.screens.PreparednessHubScreen
-import com.example.team_gamma.screens.ProfileScreen
-import com.example.team_gamma.screens.SettingsScreen
+import com.example.team_gamma.screens.*
 import com.example.team_gamma.ui.theme.TeamGammaTheme
 import kotlin.getValue
 
@@ -66,8 +44,9 @@ class MainActivity : ComponentActivity() {
     private val settingsViewModel by viewModels<SettingsViewModel>()
     private val hubViewModel by viewModels<HubViewModel>()
     private val alertsViewModel by viewModels<AlertsViewModel>()
-    // Add the new ViewModel for the Local Reports feature
     private val localReportsViewModel by viewModels<LocalReportsViewModel>()
+    // <-- 1. ADD THIS VIEWMODEL
+    private val floodPredictionViewModel by viewModels<FloodPredictionViewModel>()
 
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -164,8 +143,9 @@ class MainActivity : ComponentActivity() {
                         settingsViewModel = settingsViewModel,
                         hubViewModel = hubViewModel,
                         alertsViewModel = alertsViewModel,
-                        // Pass the new ViewModel to the navigation graph
-                        localReportsViewModel = localReportsViewModel
+                        localReportsViewModel = localReportsViewModel,
+                        // <-- 2. PASS THE VIEWMODEL DOWN
+                        floodPredictionViewModel = floodPredictionViewModel
                     )
                 }
             }
@@ -174,7 +154,18 @@ class MainActivity : ComponentActivity() {
 
     @SuppressLint("MissingPermission")
     private fun sendSosMessage() {
-        // ... (sendSosMessage function remains the same)
+        // NOTE: This is a basic implementation. You'll need to add logic to get the user's location.
+        val message = "Emergency! I need help. This is an automated alert."
+        val smsManager = SmsManager.getDefault()
+        contactsViewModel.emergencyContacts.value.forEach { contact ->
+            try {
+                smsManager.sendTextMessage(contact.number, null, message, null, null)
+                Toast.makeText(this, "SOS message sent to ${contact.name}", Toast.LENGTH_SHORT).show()
+            } catch (e: Exception) {
+                Toast.makeText(this, "Failed to send SOS to ${contact.name}", Toast.LENGTH_SHORT).show()
+                e.printStackTrace()
+            }
+        }
     }
 }
 
@@ -188,56 +179,36 @@ fun AppNavigation(
     settingsViewModel: SettingsViewModel,
     hubViewModel: HubViewModel,
     alertsViewModel: AlertsViewModel,
-    localReportsViewModel: LocalReportsViewModel // Receive the new ViewModel
+    localReportsViewModel: LocalReportsViewModel,
+    // <-- 3. RECEIVE THE VIEWMODEL
+    floodPredictionViewModel: FloodPredictionViewModel
 ) {
     NavHost(
         navController = navController,
         startDestination = "welcome",
         modifier = modifier
     ) {
-        // ... (onboarding routes)
         composable("welcome") { WelcomeScreen(onPermissionsGranted = { navController.navigate("emergency_contact_setup") }) }
         composable("emergency_contact_setup") { EmergencyContactScreen(contactsViewModel = contactsViewModel, onContactsConfirmed = { navController.navigate("dashboard") }, onNavigateBack = { navController.popBackStack() }) }
 
-        // Main App Routes
-        composable("dashboard") { PreparednessHubScreen(navController = navController, hubViewModel = hubViewModel) }
+        composable("dashboard") {
+            // <-- 4. PASS IT TO THE SCREEN
+            PreparednessHubScreen(
+                navController = navController,
+                hubViewModel = hubViewModel,
+                floodPredictionViewModel = floodPredictionViewModel
+            )
+        }
         composable("manage_contacts") { ManageContactsScreen(contactsViewModel = contactsViewModel, onNavigateBack = { navController.popBackStack() }) }
         composable("dos_and_donts") { DosAndDontsScreen(onNavigateBack = { navController.popBackStack() }) }
         composable("loud_alarm") { LoudAlarmScreen(onNavigateBack = { navController.popBackStack() }) }
         composable("ai_assistant") { AiAssistantScreen(viewModel = aiAssistantViewModel, onNavigateBack = { navController.popBackStack() }) }
         composable("map") { MapScreen() }
         composable("alerts") { AlertsScreen(viewModel = alertsViewModel) }
-
-        // This is the new route for the main reports feed
-        composable("local_reports") {
-            LocalReportsScreen(
-                navController = navController,
-                viewModel = localReportsViewModel
-            )
-        }
-        // This is the new route for creating a report
-        composable("create_report") {
-            CreateReportScreen(
-                navController = navController,
-                viewModel = localReportsViewModel
-            )
-        }
-
-        composable("profile") {
-            ProfileScreen(
-                profileViewModel = profileViewModel,
-                navController = navController
-            )
-        }
-        composable("settings") {
-            SettingsScreen(
-                viewModel = settingsViewModel,
-                onNavigateBack = { navController.popBackStack() }
-            )
-        }
-        composable("information") {
-            InformationScreen(navController = navController)
-        }
+        composable("local_reports") { LocalReportsScreen(navController = navController, viewModel = localReportsViewModel) }
+        composable("create_report") { CreateReportScreen(navController = navController, viewModel = localReportsViewModel) }
+        composable("profile") { ProfileScreen(profileViewModel = profileViewModel, navController = navController) }
+        composable("settings") { SettingsScreen(viewModel = settingsViewModel, onNavigateBack = { navController.popBackStack() }) }
+        composable("information") { InformationScreen(navController = navController) }
     }
 }
-

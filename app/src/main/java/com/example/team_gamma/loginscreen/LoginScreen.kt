@@ -17,10 +17,13 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import androidx.navigation.compose.rememberNavController
 import com.example.team_gamma.R
+import com.example.team_gamma.ui.theme.TeamGammaTheme
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
@@ -134,4 +137,12 @@ fun LoginScreen(navController: NavController, onLoginSuccess: () -> Unit) {
 private fun isValidEmail(email: String): Boolean {
     val emailPattern = "[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}"
     return email.matches(emailPattern.toRegex())
+}
+
+@Preview(showBackground = true)
+@Composable
+fun LoginScreenPreview() {
+    TeamGammaTheme {
+        LoginScreen(navController = rememberNavController(), onLoginSuccess = {})
+    }
 }

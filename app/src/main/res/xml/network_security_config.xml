@@ -3,13 +3,10 @@
     <domain-config cleartextTrafficPermitted="true">
         <domain includeSubdomains="true">10.0.2.2</domain>
         <domain includeSubdomains="true">localhost</domain>
-        <domain includeSubdomains="true">192.168.1.100</domain>
-        <domain includeSubdomains="true">192.168.0.100</domain>
-        <!-- Add your friend's server IP here -->
-        <domain includeSubdomains="true">your-server-ip</domain>
+
+        <domain includeSubdomains="true">10.113.171.128</domain>
     </domain-config>
 
-    <!-- Trust user added CAs for debugging -->
     <debug-overrides>
         <trust-anchors>
             <certificates src="user" />
