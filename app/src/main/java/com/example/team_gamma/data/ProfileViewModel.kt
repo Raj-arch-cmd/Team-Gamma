@@ -116,11 +116,11 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
         var completedFields = 0
         val totalFields = 13 // Total number of profile fields
 
-        if (profile.userName.isNotBlank() && profile.userName != "Haseeb Jameel") completedFields++
+        if (profile.userName.isNotBlank()) completedFields++
         if (profile.bloodType.isNotBlank()) completedFields++
-        if (profile.phone.isNotBlank() && profile.phone != "+91 1234567890") completedFields++
-        if (profile.emergencyContact.isNotBlank() && profile.emergencyContact != "+91 9876543210") completedFields++
-        if (profile.email.isNotBlank() && profile.email != "haseeb.jameel9570@gmail.com") completedFields++
+        if (profile.phone.isNotBlank()) completedFields++
+        if (profile.emergencyContact.isNotBlank()) completedFields++
+        if (profile.email.isNotBlank()) completedFields++
         if (profile.dateOfBirth.isNotBlank()) completedFields++
         if (profile.gender.isNotBlank()) completedFields++
         if (profile.weight.isNotBlank()) completedFields++

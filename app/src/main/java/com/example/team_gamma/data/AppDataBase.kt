@@ -52,22 +52,22 @@ abstract class AppDatabase : RoomDatabase() {
             appDao.insertAllFaqs(initialFaqs)
 
 
-            // Insert a default profile with all the new, comprehensive fields.
+            // Insert a default empty profile for a new installation.
             val defaultProfile = ProfileEntity(
                 id = 1,
-                userName = "Haseeb Jameel",
-                bloodType = "O+",
-                allergies = "None",
-                medicalConditions = "None",
-                email = "haseeb.jameel9570@gmail.com",
-                phone = "+91 1234567890",
-                emergencyContact = "+91 9876543210",
-                dateOfBirth = "04-July-2004",
-                gender = "Male",
-                weight = "55 kg",
-                height = "5ft 6inch",
-                address = "Mumbai, India",
-                emergencyInstructions = "Contact emergency contact immediately",
+                userName = "",
+                bloodType = "",
+                allergies = "",
+                medicalConditions = "",
+                email = "",
+                phone = "",
+                emergencyContact = "",
+                dateOfBirth = "",
+                gender = "",
+                weight = "",
+                height = "",
+                address = "",
+                emergencyInstructions = "",
                 profileImageUri = null
             )
             appDao.insertProfile(defaultProfile)
