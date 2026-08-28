@@ -98,18 +98,12 @@ dependencies {
     implementation(libs.gson)
     implementation(libs.coil.compose)
 
-    // Moshi
-    implementation(libs.moshi)
-    implementation(libs.moshi.kotlin)
-    implementation(libs.moshi.converter)
-
     // Google Services
     implementation(libs.maps.compose)
     implementation(libs.play.services.location)
     implementation(libs.generativeai)
 
-    // Firebase - Remove the BOM and use specific versions to avoid conflicts
-    implementation(libs.firebase.auth.ktx)
+    // Firebase
     implementation("com.google.firebase:firebase-firestore-ktx:24.10.3")
     implementation("com.google.firebase:firebase-storage-ktx:20.3.0")
 
@@ -121,21 +115,8 @@ dependencies {
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
 
-
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.1")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.1")
-
-    // For making network calls (The Postman)
-    implementation("com.squareup.retrofit2:retrofit:2.9.0")
-
-// For translating JSON to Kotlin (The Translator)
-    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
-
-// For background work (so the app doesn't freeze)
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.1")
-    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.6.2") // For ViewModel
-
-    implementation("io.coil-kt:coil-compose:2.5.0")
 
     // Test
     testImplementation(libs.junit)
