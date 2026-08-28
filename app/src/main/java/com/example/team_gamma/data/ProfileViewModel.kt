@@ -54,6 +54,59 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
     fun updateAddress(newAddress: String) = updateProfile { it.copy(address = newAddress) }
     fun updateEmergencyInstructions(instructions: String) = updateProfile { it.copy(emergencyInstructions = instructions) }
 
+    // Save full profile in a single database transaction (prevents write-on-keystroke)
+    fun saveProfile(
+        userName: String,
+        email: String,
+        dateOfBirth: String,
+        gender: String,
+        weight: String,
+        height: String,
+        phone: String,
+        emergencyContact: String,
+        bloodType: String,
+        allergies: String,
+        medicalConditions: String,
+        address: String,
+        emergencyInstructions: String
+    ) {
+        viewModelScope.launch {
+            val currentProfile = profileFlow.firstOrNull() ?: ProfileEntity(
+                id = 1,
+                userName = userName,
+                bloodType = bloodType,
+                allergies = allergies,
+                medicalConditions = medicalConditions,
+                email = email,
+                phone = phone,
+                emergencyContact = emergencyContact,
+                dateOfBirth = dateOfBirth,
+                gender = gender,
+                weight = weight,
+                height = height,
+                address = address,
+                emergencyInstructions = emergencyInstructions,
+                profileImageUri = null
+            )
+            val updatedProfile = currentProfile.copy(
+                userName = userName,
+                email = email,
+                dateOfBirth = dateOfBirth,
+                gender = gender,
+                weight = weight,
+                height = height,
+                phone = phone,
+                emergencyContact = emergencyContact,
+                bloodType = bloodType,
+                allergies = allergies,
+                medicalConditions = medicalConditions,
+                address = address,
+                emergencyInstructions = emergencyInstructions
+            )
+            appDao.insertProfile(updatedProfile)
+        }
+    }
+
     // FIX: Properly save profile image URI to database
     fun updateProfileImageUri(uri: String?) = updateProfile { it.copy(profileImageUri = uri) }
 

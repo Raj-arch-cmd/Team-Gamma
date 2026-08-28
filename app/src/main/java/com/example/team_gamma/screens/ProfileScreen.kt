@@ -59,6 +59,21 @@ fun ProfileScreen(
 
     var isEditing by remember { mutableStateOf(false) }
 
+    // Local mutable state for editing profile fields without triggering DB writes on every keystroke
+    var localUserName by remember(userName, isEditing) { mutableStateOf(userName) }
+    var localEmail by remember(email, isEditing) { mutableStateOf(email) }
+    var localDateOfBirth by remember(dateOfBirth, isEditing) { mutableStateOf(dateOfBirth) }
+    var localGender by remember(gender, isEditing) { mutableStateOf(gender) }
+    var localWeight by remember(weight, isEditing) { mutableStateOf(weight) }
+    var localHeight by remember(height, isEditing) { mutableStateOf(height) }
+    var localPhone by remember(phone, isEditing) { mutableStateOf(phone) }
+    var localEmergencyContact by remember(emergencyContact, isEditing) { mutableStateOf(emergencyContact) }
+    var localBloodType by remember(bloodType, isEditing) { mutableStateOf(bloodType) }
+    var localAllergies by remember(allergies, isEditing) { mutableStateOf(allergies) }
+    var localMedicalConditions by remember(medicalConditions, isEditing) { mutableStateOf(medicalConditions) }
+    var localAddress by remember(address, isEditing) { mutableStateOf(address) }
+    var localEmergencyInstructions by remember(emergencyInstructions, isEditing) { mutableStateOf(emergencyInstructions) }
+
     // Image Picker - Save image to internal storage
     val imagePicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent(),
@@ -93,6 +108,24 @@ fun ProfileScreen(
                 },
                 actions = {
                     IconButton(onClick = {
+                        if (isEditing) {
+                            // Save profile changes to Room only when Save is pressed
+                            profileViewModel.saveProfile(
+                                userName = localUserName,
+                                email = localEmail,
+                                dateOfBirth = localDateOfBirth,
+                                gender = localGender,
+                                weight = localWeight,
+                                height = localHeight,
+                                phone = localPhone,
+                                emergencyContact = localEmergencyContact,
+                                bloodType = localBloodType,
+                                allergies = localAllergies,
+                                medicalConditions = localMedicalConditions,
+                                address = localAddress,
+                                emergencyInstructions = localEmergencyInstructions
+                            )
+                        }
                         isEditing = !isEditing
                     }) {
                         Icon(
@@ -122,7 +155,7 @@ fun ProfileScreen(
 
             // Header Section
             ProfileHeaderSection(
-                userName = userName,
+                userName = if (isEditing) localUserName else userName,
                 profileImageUri = profileImageUri,
                 isEditing = isEditing,
                 onEditImage = { imagePicker.launch("image/*") }
@@ -132,20 +165,19 @@ fun ProfileScreen(
 
             if (isEditing) {
                 EditProfileForm(
-                    profileViewModel = profileViewModel,
-                    userName = userName,
-                    email = email,
-                    dateOfBirth = dateOfBirth,
-                    gender = gender,
-                    weight = weight,
-                    height = height,
-                    phone = phone,
-                    emergencyContact = emergencyContact,
-                    bloodType = bloodType,
-                    allergies = allergies,
-                    medicalConditions = medicalConditions,
-                    address = address,
-                    emergencyInstructions = emergencyInstructions
+                    localUserName = localUserName, onUserNameChange = { localUserName = it },
+                    localEmail = localEmail, onEmailChange = { localEmail = it },
+                    localDateOfBirth = localDateOfBirth, onDateOfBirthChange = { localDateOfBirth = it },
+                    localGender = localGender, onGenderChange = { localGender = it },
+                    localWeight = localWeight, onWeightChange = { localWeight = it },
+                    localHeight = localHeight, onHeightChange = { localHeight = it },
+                    localPhone = localPhone, onPhoneChange = { localPhone = it },
+                    localEmergencyContact = localEmergencyContact, onEmergencyContactChange = { localEmergencyContact = it },
+                    localBloodType = localBloodType, onBloodTypeChange = { localBloodType = it },
+                    localAllergies = localAllergies, onAllergiesChange = { localAllergies = it },
+                    localMedicalConditions = localMedicalConditions, onMedicalConditionsChange = { localMedicalConditions = it },
+                    localAddress = localAddress, onAddressChange = { localAddress = it },
+                    localEmergencyInstructions = localEmergencyInstructions, onEmergencyInstructionsChange = { localEmergencyInstructions = it }
                 )
             } else {
                 ViewProfileDetails(
@@ -379,82 +411,41 @@ fun ProfileInfoRow(label: String, value: String) {
 
 @Composable
 fun EditProfileForm(
-    profileViewModel: ProfileViewModel,
-    userName: String,
-    email: String,
-    dateOfBirth: String,
-    gender: String,
-    weight: String,
-    height: String,
-    phone: String,
-    emergencyContact: String,
-    bloodType: String,
-    allergies: String,
-    medicalConditions: String,
-    address: String,
-    emergencyInstructions: String
+    localUserName: String, onUserNameChange: (String) -> Unit,
+    localEmail: String, onEmailChange: (String) -> Unit,
+    localDateOfBirth: String, onDateOfBirthChange: (String) -> Unit,
+    localGender: String, onGenderChange: (String) -> Unit,
+    localWeight: String, onWeightChange: (String) -> Unit,
+    localHeight: String, onHeightChange: (String) -> Unit,
+    localPhone: String, onPhoneChange: (String) -> Unit,
+    localEmergencyContact: String, onEmergencyContactChange: (String) -> Unit,
+    localBloodType: String, onBloodTypeChange: (String) -> Unit,
+    localAllergies: String, onAllergiesChange: (String) -> Unit,
+    localMedicalConditions: String, onMedicalConditionsChange: (String) -> Unit,
+    localAddress: String, onAddressChange: (String) -> Unit,
+    localEmergencyInstructions: String, onEmergencyInstructionsChange: (String) -> Unit
 ) {
-    var localUserName by remember { mutableStateOf(userName) }
-    var localEmail by remember { mutableStateOf(email) }
-    var localDateOfBirth by remember { mutableStateOf(dateOfBirth) }
-    var localGender by remember { mutableStateOf(gender) }
-    var localWeight by remember { mutableStateOf(weight) }
-    var localHeight by remember { mutableStateOf(height) }
-    var localPhone by remember { mutableStateOf(phone) }
-    var localEmergencyContact by remember { mutableStateOf(emergencyContact) }
-    var localBloodType by remember { mutableStateOf(bloodType) }
-    var localAllergies by remember { mutableStateOf(allergies) }
-    var localMedicalConditions by remember { mutableStateOf(medicalConditions) }
-    var localAddress by remember { mutableStateOf(address) }
-    var localEmergencyInstructions by remember { mutableStateOf(emergencyInstructions) }
-
     Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
         ProfileEditSection("Private Information", listOf(
-            EditField("Name", localUserName) {
-                localUserName = it; profileViewModel.updateUserName(it)
-            },
-            EditField("Email", localEmail) {
-                localEmail = it; profileViewModel.updateEmail(it)
-            },
-            EditField("Birthdate", localDateOfBirth) {
-                localDateOfBirth = it; profileViewModel.updateDateOfBirth(it)
-            },
-            EditField("Gender", localGender) {
-                localGender = it; profileViewModel.updateGender(it)
-            },
-            EditField("Weight", localWeight) {
-                localWeight = it; profileViewModel.updateWeight(it)
-            },
-            EditField("Height", localHeight) {
-                localHeight = it; profileViewModel.updateHeight(it)
-            }
+            EditField("Name", localUserName, onUserNameChange),
+            EditField("Email", localEmail, onEmailChange),
+            EditField("Birthdate", localDateOfBirth, onDateOfBirthChange),
+            EditField("Gender", localGender, onGenderChange),
+            EditField("Weight", localWeight, onWeightChange),
+            EditField("Height", localHeight, onHeightChange)
         ))
 
         ProfileEditSection("Contact Information", listOf(
-            EditField("Phone", localPhone) {
-                localPhone = it; profileViewModel.updatePhone(it)
-            },
-            EditField("Emergency Contact", localEmergencyContact) {
-                localEmergencyContact = it; profileViewModel.updateEmergencyContact(it)
-            },
-            EditField("Address", localAddress) {
-                localAddress = it; profileViewModel.updateAddress(it)
-            }
+            EditField("Phone", localPhone, onPhoneChange),
+            EditField("Emergency Contact", localEmergencyContact, onEmergencyContactChange),
+            EditField("Address", localAddress, onAddressChange)
         ))
 
         ProfileEditSection("Medical Information", listOf(
-            EditField("Blood Type", localBloodType) {
-                localBloodType = it; profileViewModel.updateBloodType(it)
-            },
-            EditField("Allergies", localAllergies) {
-                localAllergies = it; profileViewModel.updateAllergies(it)
-            },
-            EditField("Medical Conditions", localMedicalConditions) {
-                localMedicalConditions = it; profileViewModel.updateMedicalConditions(it)
-            },
-            EditField("Emergency Instructions", localEmergencyInstructions) {
-                localEmergencyInstructions = it; profileViewModel.updateEmergencyInstructions(it)
-            }
+            EditField("Blood Type", localBloodType, onBloodTypeChange),
+            EditField("Allergies", localAllergies, onAllergiesChange),
+            EditField("Medical Conditions", localMedicalConditions, onMedicalConditionsChange),
+            EditField("Emergency Instructions", localEmergencyInstructions, onEmergencyInstructionsChange)
         ))
     }
 }
