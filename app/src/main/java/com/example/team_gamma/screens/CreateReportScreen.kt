@@ -21,7 +21,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil.compose.rememberAsyncImagePainter
 import com.example.team_gamma.data.LocalReportsViewModel
@@ -45,7 +45,7 @@ private fun createImageFile(context: Context): File {
 @Composable
 fun CreateReportScreen(
     navController: NavController,
-    viewModel: LocalReportsViewModel = viewModel()
+    viewModel: LocalReportsViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
     var description by remember { mutableStateOf("") }

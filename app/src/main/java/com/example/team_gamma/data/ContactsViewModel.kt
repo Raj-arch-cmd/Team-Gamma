@@ -3,12 +3,15 @@ package com.example.team_gamma.data
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.first
 
-class ContactsViewModel(application: Application) : AndroidViewModel(application) {
+@HiltViewModel
+class ContactsViewModel @Inject constructor(application: Application) : AndroidViewModel(application) {
 
     private val appDao = AppDatabase.getDatabase(application).appDao()
 

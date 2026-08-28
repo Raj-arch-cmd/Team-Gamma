@@ -2,6 +2,8 @@ package com.example.team_gamma.data
 
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.ViewModel
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
@@ -21,7 +23,8 @@ sealed class ManualAlertState(val title: String, val message: String, val color:
  * This is your "remote control". It holds the current alert state
  * and provides functions (the "buttons") to change it.
  */
-class ManualAlertViewModel : ViewModel() {
+@HiltViewModel
+class ManualAlertViewModel @Inject constructor() : ViewModel() {
 
     // The private internal state that holds the current alert status.
     private val _uiState = MutableStateFlow<ManualAlertState>(ManualAlertState.NoRisk)

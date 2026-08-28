@@ -19,7 +19,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.team_gamma.data.LocalReport
@@ -29,7 +29,7 @@ import com.example.team_gamma.data.LocalReportsViewModel
 @Composable
 fun LocalReportsScreen(
     navController: NavController,
-    viewModel: LocalReportsViewModel = viewModel()
+    viewModel: LocalReportsViewModel = hiltViewModel()
 ) {
     val reports by viewModel.reports.collectAsState()
 

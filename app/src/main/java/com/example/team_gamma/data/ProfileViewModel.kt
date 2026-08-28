@@ -5,10 +5,13 @@ import android.app.Application
 import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
-class ProfileViewModel(application: Application) : AndroidViewModel(application) {
+@HiltViewModel
+class ProfileViewModel @Inject constructor(application: Application) : AndroidViewModel(application) {
 
     private val appDao = AppDatabase.getDatabase(application).appDao()
 

@@ -16,12 +16,13 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.team_gamma.data.SettingsViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
-    viewModel: SettingsViewModel,
+    viewModel: SettingsViewModel = hiltViewModel(),
     onNavigateBack: () -> Unit // Callback to go back to the Profile screen
 ) {
     val sosMessage by viewModel.sosMessage.collectAsState()

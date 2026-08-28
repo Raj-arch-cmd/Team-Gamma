@@ -49,12 +49,14 @@ import com.example.team_gamma.ui.theme.TeamGammaTheme
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.google.android.gms.tasks.CancellationTokenSource
+import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 // ✅ THIS IS THE FIX: The data class definition was missing.
 data class BottomNavItem(val label: String, val icon: ImageVector, val route: String)
 
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     private val contactsViewModel by viewModels<ContactsViewModel>()
     private val profileViewModel by viewModels<ProfileViewModel>()

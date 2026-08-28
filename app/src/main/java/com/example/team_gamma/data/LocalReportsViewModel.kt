@@ -1,12 +1,15 @@
 package com.example.team_gamma.data
 
 import androidx.lifecycle.ViewModel
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import java.util.UUID
 
-class LocalReportsViewModel : ViewModel() {
+@HiltViewModel
+class LocalReportsViewModel @Inject constructor() : ViewModel() {
 
     private val _reports = MutableStateFlow<List<LocalReport>>(emptyList())
     val reports: StateFlow<List<LocalReport>> = _reports.asStateFlow()

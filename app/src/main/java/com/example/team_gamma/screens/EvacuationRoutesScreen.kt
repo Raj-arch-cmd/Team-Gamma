@@ -20,6 +20,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.example.team_gamma.data.EvacuationRoute
 import com.example.team_gamma.data.FloodPredictionViewModel
@@ -29,7 +30,7 @@ import com.example.team_gamma.data.PredictionUiState
 @Composable
 fun EvacuationRoutesScreen(
     navController: NavController,
-    viewModel: FloodPredictionViewModel
+    viewModel: FloodPredictionViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
 

@@ -3,6 +3,8 @@ package com.example.team_gamma.data
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -15,7 +17,8 @@ sealed interface AlertsUiState {
     data class Error(val message: String) : AlertsUiState
 }
 
-class AlertsViewModel : ViewModel() {
+@HiltViewModel
+class AlertsViewModel @Inject constructor() : ViewModel() {
     private val alertsRepository = AlertsRepository()
 
     private val _uiState = MutableStateFlow<AlertsUiState>(AlertsUiState.Loading)

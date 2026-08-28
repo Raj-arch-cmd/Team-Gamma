@@ -9,10 +9,13 @@ import androidx.lifecycle.viewModelScope
 import com.example.team_gamma.BuildConfig
 import com.example.team_gamma.screens.ChatMessage
 import com.google.ai.client.generativeai.GenerativeModel
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
-class AiAssistantViewModel(application: Application) : AndroidViewModel(application) {
+@HiltViewModel
+class AiAssistantViewModel @Inject constructor(application: Application) : AndroidViewModel(application) {
 
     private val faqDao = AppDatabase.getDatabase(application).appDao()
 

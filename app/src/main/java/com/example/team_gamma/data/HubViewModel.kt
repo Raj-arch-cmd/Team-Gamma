@@ -2,11 +2,14 @@ package com.example.team_gamma.data
 
 
 import androidx.lifecycle.ViewModel
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-class HubViewModel : ViewModel() {
+@HiltViewModel
+class HubViewModel @Inject constructor() : ViewModel() {
 
     // This holds the current alert. If it's null, there is no emergency.
     private val _activeAlert = MutableStateFlow<EmergencyAlert?>(null)

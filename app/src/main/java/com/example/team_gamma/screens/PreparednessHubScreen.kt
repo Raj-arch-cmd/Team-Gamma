@@ -17,7 +17,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.example.team_gamma.screens.GoogleMapScreen
 import com.example.team_gamma.data.FloodPredictionViewModel
@@ -33,8 +33,8 @@ data class HubQuickAction(
 @Composable
 fun PreparednessHubScreen(
     navController: NavController,
-    hubViewModel: HubViewModel,
-    floodPredictionViewModel: FloodPredictionViewModel = viewModel()
+    hubViewModel: HubViewModel = hiltViewModel(),
+    floodPredictionViewModel: FloodPredictionViewModel = hiltViewModel()
 ) {
     val quickActions = listOf(
         HubQuickAction(Icons.Default.Contacts, "Contacts", "manage_contacts"),

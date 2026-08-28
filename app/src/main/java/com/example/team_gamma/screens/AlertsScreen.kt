@@ -15,14 +15,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.team_gamma.data.AlertsUiState
 import com.example.team_gamma.data.AlertsViewModel
 import com.example.team_gamma.data.HistoricalAlert
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AlertsScreen(viewModel: AlertsViewModel = viewModel()) {
+fun AlertsScreen(viewModel: AlertsViewModel = hiltViewModel()) {
     val uiState by viewModel.uiState.collectAsState()
 
     Scaffold(

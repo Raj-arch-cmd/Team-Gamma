@@ -22,7 +22,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.example.team_gamma.R
 import com.example.team_gamma.auth.AuthViewModel
@@ -34,7 +34,7 @@ fun LoginScreen(navController: NavController, onLoginSuccess: () -> Unit) {
     var passwordVisible by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
-    val authViewModel: AuthViewModel = viewModel()
+    val authViewModel: AuthViewModel = hiltViewModel()
     val authState by authViewModel.authState.collectAsState()
 
     // ✅ Observe auth state

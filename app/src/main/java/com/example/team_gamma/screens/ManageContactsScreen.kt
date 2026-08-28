@@ -26,6 +26,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.team_gamma.data.Contact
 import com.example.team_gamma.data.ContactEntity
 import com.example.team_gamma.data.ContactsViewModel
@@ -34,7 +35,7 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ManageContactsScreen(
-    contactsViewModel: ContactsViewModel,
+    contactsViewModel: ContactsViewModel = hiltViewModel(),
     onNavigateBack: () -> Unit
 ) {
     val context = LocalContext.current
