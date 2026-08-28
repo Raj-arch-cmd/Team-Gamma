@@ -1,4 +1,4 @@
-package com.example.resqtech.ui.theme.screens
+package com.example.team_gamma.screens
 
 
 import android.media.MediaPlayer

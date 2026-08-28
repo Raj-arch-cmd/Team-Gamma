@@ -3,6 +3,7 @@ package com.example.team_gamma
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.telephony.SmsManager
 import android.widget.Toast
@@ -26,6 +27,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -34,7 +36,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.example.resqtech.ui.theme.screens.LoudAlarmScreen
+import com.example.team_gamma.screens.LoudAlarmScreen
 import com.example.team_gamma.auth.AuthViewModel
 import com.example.team_gamma.component.SosConfirmationDialog
 import com.example.team_gamma.data.*
@@ -44,10 +46,13 @@ import com.example.team_gamma.onboarding.EmergencyContactScreen
 import com.example.team_gamma.onboarding.WelcomeScreen
 import com.example.team_gamma.screens.*
 import com.example.team_gamma.ui.theme.TeamGammaTheme
-import kotlinx.coroutines.CoroutineScope
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
+import com.google.android.gms.tasks.CancellationTokenSource
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
+// ✅ THIS IS THE FIX: The data class definition was missing.
 data class BottomNavItem(val label: String, val icon: ImageVector, val route: String)
 
 class MainActivity : ComponentActivity() {
@@ -71,32 +76,28 @@ class MainActivity : ComponentActivity() {
                 "Dark" -> true
                 else -> isSystemInDarkTheme()
             }
-
             TeamGammaTheme(darkTheme = useDarkTheme) {
                 val navController = rememberNavController()
                 val navBackStackEntry by navController.currentBackStackEntryAsState()
                 val currentDestination = navBackStackEntry?.destination
 
-                // ✅ UPDATED LOGIC: Determine the correct start destination
                 val isFirstLaunch by settingsViewModel.isFirstLaunch.collectAsState()
                 val currentUser by authViewModel.currentUser.collectAsState()
                 var startDestination by remember { mutableStateOf<String?>(null) }
 
                 LaunchedEffect(isFirstLaunch, currentUser) {
-                    if (isFirstLaunch != null) { // Wait for DataStore to load
+                    if (isFirstLaunch != null) {
                         startDestination = when {
-                            isFirstLaunch == true -> "welcome" // First priority: Permissions onboarding
-                            currentUser != null -> "dashboard"  // If not first launch & logged in
-                            else -> "login"             // If not first launch & not logged in
+                            isFirstLaunch == true -> "welcome"
+                            currentUser != null -> "dashboard"
+                            else -> "login"
                         }
                     }
                 }
 
-                // Only show UI when the start destination is determined
                 if (startDestination != null) {
                     val bottomBarRoutes = listOf("dashboard", "alerts", "local_reports", "profile")
                     val showBottomBar = currentDestination?.route in bottomBarRoutes
-
                     var showSosDialog by remember { mutableStateOf(false) }
                     val smsPermissionLauncher = rememberLauncherForActivityResult(
                         contract = ActivityResultContracts.RequestPermission(),
@@ -105,12 +106,11 @@ class MainActivity : ComponentActivity() {
                             else Toast.makeText(this, "SMS permission is required.", Toast.LENGTH_LONG).show()
                         }
                     )
-
                     if (showSosDialog) {
                         SosConfirmationDialog(
                             onConfirm = {
                                 showSosDialog = false
-                                sendSosMessage()
+                                sendSosMessageWithLocation()
                             },
                             onDismiss = { showSosDialog = false }
                         )
@@ -164,6 +164,7 @@ class MainActivity : ComponentActivity() {
                         },
                         floatingActionButtonPosition = FabPosition.Center
                     ) { innerPadding ->
+                        val floodPredictionViewModel: FloodPredictionViewModel = viewModel()
                         AppNavigation(
                             modifier = Modifier.padding(innerPadding),
                             navController = navController,
@@ -176,11 +177,11 @@ class MainActivity : ComponentActivity() {
                             localReportsViewModel = localReportsViewModel,
                             manualAlertViewModel = manualAlertViewModel,
                             authViewModel = authViewModel,
-                            startDestination = startDestination!!
+                            startDestination = startDestination!!,
+                            floodPredictionViewModel = floodPredictionViewModel
                         )
                     }
                 } else {
-                    // Show a loading screen while we determine the route
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator()
                     }
@@ -189,33 +190,104 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-
     @SuppressLint("MissingPermission")
-    private fun sendSosMessage() {
-        CoroutineScope(Dispatchers.Main).launch {
-            val message = "🚨 Emergency! I need help. This is an automated alert from ResQTech."
-            val smsManager = SmsManager.getDefault()
+    private fun sendSosMessageWithLocation() {
+        val hasFineLocation = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        val hasCoarseLocation = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        if (!hasFineLocation && !hasCoarseLocation) {
+            Toast.makeText(this, "Location permission is required to send location in SOS.", Toast.LENGTH_LONG).show()
+            sendSmsToContacts("Location permission not granted.")
+            return
+        }
+
+        val fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
+
+        Toast.makeText(this, "Getting current location...", Toast.LENGTH_SHORT).show()
+
+        fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, CancellationTokenSource().token)
+            .addOnSuccessListener { location ->
+                val finalMessage: String
+                if (location != null) {
+                    val lat = location.latitude
+                    val lon = location.longitude
+                    val mapLink = "https://maps.google.com/maps?q=loc:$lat,$lon"
+
+                    val baseMessage = settingsViewModel.sosMessage.value
+                    finalMessage = "$baseMessage\nMy current location is: $mapLink"
+
+                    Toast.makeText(this, "Location found! Sending SOS.", Toast.LENGTH_SHORT).show()
+                } else {
+                    finalMessage = "${settingsViewModel.sosMessage.value}\nLocation could not be determined."
+                    Toast.makeText(this, "Could not get location. Sending SOS without it.", Toast.LENGTH_LONG).show()
+                }
+                sendSmsToContacts(finalMessage)
+            }
+            .addOnFailureListener { exception ->
+                val finalMessage = "${settingsViewModel.sosMessage.value}\nLocation could not be determined. (Error: ${exception.message})"
+                Toast.makeText(this, "Failed to get location. Sending SOS without it.", Toast.LENGTH_LONG).show()
+                sendSmsToContacts(finalMessage)
+            }
+    }
+
+    private fun sendSmsToContacts(message: String) {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.SEND_SMS) != PackageManager.PERMISSION_GRANTED) {
+            Toast.makeText(this, "SMS permission is required to send SOS messages.", Toast.LENGTH_LONG).show()
+            return
+        }
+
+        lifecycleScope.launch(Dispatchers.IO) {
+            val smsManager = try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    this@MainActivity.getSystemService(SmsManager::class.java)
+                } else {
+                    @Suppress("DEPRECATION")
+                    SmsManager.getDefault()
+                }
+            } catch (e: Exception) {
+                null
+            }
+
+            if (smsManager == null) {
+                launch(Dispatchers.Main) {
+                    Toast.makeText(this@MainActivity, "SMS service is unavailable on this device.", Toast.LENGTH_LONG).show()
+                }
+                return@launch
+            }
 
             try {
-                val contactList = contactsViewModel.getSavedContacts()
+                val contactList = contactsViewModel.getSavedContacts().filter { it.number.isNotBlank() }
                 if (contactList.isEmpty()) {
-                    Toast.makeText(this@MainActivity, "No emergency contacts found.", Toast.LENGTH_LONG).show()
+                    launch(Dispatchers.Main) {
+                        Toast.makeText(this@MainActivity, "No emergency contacts found.", Toast.LENGTH_LONG).show()
+                    }
                     return@launch
                 }
                 contactList.forEach { contact ->
                     try {
-                        smsManager.sendTextMessage(contact.number, null, message, null, null)
-                        Toast.makeText(this@MainActivity, "SOS sent to ${contact.name}", Toast.LENGTH_SHORT).show()
+                        val parts = smsManager.divideMessage(message)
+                        if (parts.size > 1) {
+                            smsManager.sendMultipartTextMessage(contact.number, null, parts, null, null)
+                        } else {
+                            smsManager.sendTextMessage(contact.number, null, message, null, null)
+                        }
+                        launch(Dispatchers.Main) {
+                            Toast.makeText(this@MainActivity, "SOS sent to ${contact.name}", Toast.LENGTH_SHORT).show()
+                        }
                     } catch (e: Exception) {
-                        Toast.makeText(this@MainActivity, "Failed to send to ${contact.name}", Toast.LENGTH_SHORT).show()
+                        launch(Dispatchers.Main) {
+                            Toast.makeText(this@MainActivity, "Failed to send SMS to ${contact.name}", Toast.LENGTH_SHORT).show()
+                        }
                     }
                 }
             } catch (e: Exception) {
-                Toast.makeText(this@MainActivity, "Could not load contacts.", Toast.LENGTH_LONG).show()
+                launch(Dispatchers.Main) {
+                    Toast.makeText(this@MainActivity, "Could not load contacts from database.", Toast.LENGTH_LONG).show()
+                }
             }
         }
     }
 }
+
 
 @Composable
 fun AppNavigation(
@@ -230,24 +302,27 @@ fun AppNavigation(
     localReportsViewModel: LocalReportsViewModel,
     manualAlertViewModel: ManualAlertViewModel,
     authViewModel: AuthViewModel,
-    startDestination: String
+    startDestination: String,
+    floodPredictionViewModel: FloodPredictionViewModel
 ) {
-
-    val floodPredictionViewModel: FloodPredictionViewModel = viewModel()
-
     NavHost(
         navController = navController,
         startDestination = startDestination,
         modifier = modifier
     ) {
-        // Auth routes
         composable("login") {
             LoginScreen(
                 navController = navController,
                 onLoginSuccess = {
-                    // ✅ Navigate to emergency_contact_setup AFTER successful login
-                    navController.navigate("emergency_contact_setup") {
-                        popUpTo("login") { inclusive = true }
+                    val isFirstLaunch = settingsViewModel.isFirstLaunch.value
+                    if (isFirstLaunch == true) {
+                        navController.navigate("emergency_contact_setup") {
+                            popUpTo("login") { inclusive = true }
+                        }
+                    } else {
+                        navController.navigate("dashboard") {
+                            popUpTo("login") { inclusive = true }
+                        }
                     }
                 }
             )
@@ -256,60 +331,41 @@ fun AppNavigation(
             SignUpScreen(
                 navController = navController,
                 onSignUpSuccess = {
-                    // ✅ Navigate to emergency_contact_setup AFTER successful signup
                     navController.navigate("emergency_contact_setup") {
                         popUpTo("signup") { inclusive = true }
                     }
                 }
             )
         }
-
-        // Onboarding Flow
         composable("welcome") {
             WelcomeScreen(onPermissionsGranted = {
-                // ✅ After permissions are granted, navigate to Login/Signup
                 navController.navigate("login") {
-                    popUpTo("welcome") { inclusive = true } // Clear WelcomeScreen
+                    popUpTo("welcome") { inclusive = true }
                 }
-                // Also, ensure any existing user is logged out so they face the login screen
                 authViewModel.logout()
             })
         }
-
-        // ✅ Emergency Contact screen now comes AFTER Login/Signup for first-timers
         composable("emergency_contact_setup") {
             EmergencyContactScreen(
                 contactsViewModel = contactsViewModel,
                 onContactsConfirmed = {
-                    // Mark onboarding as complete AFTER contacts are set up
                     settingsViewModel.setFirstLaunchCompleted()
-                    // Finally navigate to dashboard
                     navController.navigate("dashboard") {
-                        popUpTo("emergency_contact_setup") { inclusive = true } // Clear contacts screen
+                        popUpTo(navController.graph.findStartDestination().id) {
+                            inclusive = true
+                        }
                     }
                 },
-                onNavigateBack = { navController.popBackStack() } // Keep back navigation if needed
+                onNavigateBack = { navController.popBackStack() }
             )
         }
-
-
-        // Main App Screens (remain unchanged)
         composable("dashboard") {
             PreparednessHubScreen(
                 navController = navController,
                 hubViewModel = hubViewModel,
                 floodPredictionViewModel = floodPredictionViewModel
-                // No manualAlertViewModel is passed here
             )
         }
-        composable("evacuation_routes") {
-            EvacuationRoutesScreen(
-                navController = navController,
-                // ✅ Pass the SAME shared ViewModel to the new screen
-                viewModel = floodPredictionViewModel
-            )
-        }
-
         composable("alerts") { AlertsScreen(viewModel = alertsViewModel) }
         composable("local_reports") {
             LocalReportsScreen(navController = navController, viewModel = localReportsViewModel)
@@ -324,14 +380,6 @@ fun AppNavigation(
                 authViewModel = authViewModel
             )
         }
-        composable("loud_alarm") {
-            LoudAlarmScreen(onNavigateBack = { navController.popBackStack() })
-        }
-
-        composable("nearest_hospital") {
-            NearestHospitalScreen(navController = navController)
-        }
-
         composable("settings") {
             SettingsScreen(viewModel = settingsViewModel, onNavigateBack = { navController.popBackStack() })
         }
@@ -343,5 +391,21 @@ fun AppNavigation(
         composable("ai_assistant") {
             AiAssistantScreen(viewModel = aiAssistantViewModel, onNavigateBack = { navController.popBackStack() })
         }
+        composable("evacuation_routes") {
+            EvacuationRoutesScreen(
+                navController = navController,
+                viewModel = floodPredictionViewModel
+            )
+        }
+        composable("loud_alarm") {
+            LoudAlarmScreen(onNavigateBack = { navController.popBackStack() })
+        }
+        composable("nearest_hospital") {
+            NearestHospitalScreen(navController = navController)
+        }
+        composable("map") {
+            MapScreen()
+        }
     }
 }
+

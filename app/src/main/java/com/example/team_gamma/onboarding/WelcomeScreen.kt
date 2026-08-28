@@ -5,8 +5,8 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.provider.Settings
-import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -21,7 +21,9 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -36,12 +38,11 @@ import androidx.core.content.ContextCompat
 import com.example.team_gamma.R
 import kotlinx.coroutines.launch
 
-// ... (PermissionPage data class remains unchanged) ...
 data class PermissionPage(
     val imageRes: Int,
     val title: String,
     val description: String,
-    val permission: String // Added for easier permission management
+    val permission: String
 )
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -51,19 +52,19 @@ fun WelcomeScreen(onPermissionsGranted: () -> Unit) {
     val pages = remember {
         listOf(
             PermissionPage(
-                imageRes = R.drawable.ic_permission_contacts, // Make sure you have these drawables
+                imageRes = R.drawable.ic_permission_location, // Corrected image
                 title = "Location Permission",
                 description = "To provide you with location-based alerts and share your precise location during an SOS.",
                 permission = Manifest.permission.ACCESS_FINE_LOCATION
             ),
             PermissionPage(
-                imageRes = R.drawable.ic_permission_notification, // Make sure you have these drawables
+                imageRes = R.drawable.ic_permission_notification,
                 title = "Notification Permission",
                 description = "To send you timely alerts and important safety notifications.",
-                permission = Manifest.permission.POST_NOTIFICATIONS // Android 13+
+                permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) Manifest.permission.POST_NOTIFICATIONS else "permission.POST_NOTIFICATIONS_DUMMY"
             ),
             PermissionPage(
-                imageRes = R.drawable.ic_permission_location, // Make sure you have these drawables
+                imageRes = R.drawable.ic_permission_contacts, // Corrected image
                 title = "Contacts Permission",
                 description = "To quickly notify your chosen emergency contacts for you when you activate the SOS feature.",
                 permission = Manifest.permission.READ_CONTACTS
@@ -74,16 +75,15 @@ fun WelcomeScreen(onPermissionsGranted: () -> Unit) {
     val pagerState = rememberPagerState(pageCount = { pages.size })
     val coroutineScope = rememberCoroutineScope()
 
-    // Combined permission launcher for all needed permissions
+    val permissionsToRequest = pages.map { it.permission }.filter { it != "permission.POST_NOTIFICATIONS_DUMMY" }.toTypedArray()
+
     val multiplePermissionsLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissionsMap ->
-        val allGranted = permissionsMap.all { it.value }
-        if (allGranted) {
+        if (permissionsMap.all { it.value }) {
             onPermissionsGranted()
         } else {
-            // Optional: Show a toast or dialog indicating not all permissions were granted
-            // For simplicity, we'll just allow the user to retry or manually enable
+            // Optional: Show a toast indicating permissions are required.
         }
     }
 
@@ -94,15 +94,12 @@ fun WelcomeScreen(onPermissionsGranted: () -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.SpaceBetween
     ) {
-        // Skip Button - always visible
         Text(
             text = "Skip",
             modifier = Modifier
                 .align(Alignment.End)
                 .padding(top = 16.dp, end = 24.dp)
-                // You might want to handle what 'skip' does in the first launch.
-                // For now, it will simply go to the next screen without granting permissions.
-                .clickable { onPermissionsGranted() }, // TODO: Revisit skip behavior if mandatory
+                .clickable { onPermissionsGranted() },
             color = MaterialTheme.colorScheme.primary,
             fontSize = 16.sp,
             fontWeight = FontWeight.Medium
@@ -112,13 +109,11 @@ fun WelcomeScreen(onPermissionsGranted: () -> Unit) {
             state = pagerState,
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(1f) // Takes available space
+                .weight(1f)
         ) { pageIndex ->
-            val page = pages[pageIndex]
-            PermissionPageContent(page = page)
+            PermissionPageContent(page = pages[pageIndex])
         }
 
-        // Pager indicator
         Row(
             Modifier
                 .height(50.dp)
@@ -138,64 +133,70 @@ fun WelcomeScreen(onPermissionsGranted: () -> Unit) {
             }
         }
 
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 24.dp, vertical = 32.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Back Button
-            if (pagerState.currentPage > 0) {
+        // --- CORRECTED BUTTON LAYOUT ---
+        val isLastPage = pagerState.currentPage == pages.size - 1
+
+        if (pagerState.currentPage == 0) {
+            // ✅ FIX 1: On the first page, show a single, full-width "Next" button.
+            Button(
+                onClick = {
+                    coroutineScope.launch {
+                        pagerState.animateScrollToPage(pagerState.currentPage + 1)
+                    }
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp, vertical = 32.dp)
+                    .height(50.dp)
+            ) {
+                Text("Next", fontSize = 18.sp)
+            }
+        } else {
+            // On subsequent pages, show "Back" and "Next"/"Grant" with equal size.
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp, vertical = 32.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Back Button
                 Button(
                     onClick = {
                         coroutineScope.launch {
                             pagerState.animateScrollToPage(pagerState.currentPage - 1)
                         }
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
-                    modifier = Modifier.weight(1f)
+                    // ✅ FIX 2: Both buttons now have equal weight.
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(50.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
                 ) {
-                    // ✅ Fixed alignment for "Back" button text
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(text = "Back", color = MaterialTheme.colorScheme.onSecondaryContainer)
-                    }
+                    Text("Back", color = MaterialTheme.colorScheme.onSecondaryContainer, fontSize = 18.sp)
                 }
-            } else {
-                Spacer(modifier = Modifier.weight(1f)) // Maintain spacing if no back button
-            }
 
-            Spacer(modifier = Modifier.width(16.dp))
-
-            // Grant Permissions / Next Button
-            Button(
-                onClick = {
-                    if (pagerState.currentPage < pages.size - 1) {
-                        coroutineScope.launch {
-                            pagerState.animateScrollToPage(pagerState.currentPage + 1)
+                // Next or Grant Permissions Button
+                Button(
+                    onClick = {
+                        if (isLastPage) {
+                            multiplePermissionsLauncher.launch(permissionsToRequest)
+                        } else {
+                            coroutineScope.launch {
+                                pagerState.animateScrollToPage(pagerState.currentPage + 1)
+                            }
                         }
-                    } else {
-                        // This is the last page, request permissions
-                        val permissionsToRequest = pages.map { it.permission }.toTypedArray()
-                        multiplePermissionsLauncher.launch(permissionsToRequest)
-                    }
-                },
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                modifier = Modifier.weight(1.5f) // Make Grant Permissions button slightly wider
-            ) {
-                // ✅ Fixed alignment for "Grant Permissions" / "Next" button text
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
+                    },
+                    // ✅ FIX 2: Both buttons now have equal weight.
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(50.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                 ) {
                     Text(
-                        text = if (pagerState.currentPage == pages.size - 1) "Grant Permissions" else "Next",
-                        color = MaterialTheme.colorScheme.onPrimary
+                        text = if (isLastPage) "Grant Permissions" else "Next",
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        fontSize = if (isLastPage) 12.sp else 18.sp
                     )
                 }
             }
@@ -252,3 +253,4 @@ fun openAppSettings(context: Context) {
 fun isPermissionGranted(context: Context, permission: String): Boolean {
     return ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED
 }
+

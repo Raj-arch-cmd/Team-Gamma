@@ -1,4 +1,4 @@
-package com.example.resqtech.ui.theme.screens
+package com.example.team_gamma.screens
 
 // Core Android / Compose
 import android.Manifest

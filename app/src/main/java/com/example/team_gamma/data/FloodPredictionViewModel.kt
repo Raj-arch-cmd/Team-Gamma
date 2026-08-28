@@ -1,40 +1,44 @@
 package com.example.team_gamma.data
 
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
-import com.example.team_gamma.FlaskApi.PredictionResponse // ✅ CORRECT IMPORT
-import com.example.team_gamma.FlaskApi.RetrofitClient
+import com.example.team_gamma.data.EvacuationRoute
+import com.example.team_gamma.data.PredictionResponse
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.asStateFlow
 
-// This sealed interface now correctly holds the new, richer PredictionResponse
 sealed interface PredictionUiState {
     object Loading : PredictionUiState
+    object Neutral : PredictionUiState
     data class Success(val prediction: PredictionResponse) : PredictionUiState
     data class Error(val message: String) : PredictionUiState
 }
 
+/**
+ * Formerly FloodPredictionViewModel.
+ * Now provides neutral status and static evacuation data to ensure app stability
+ * without relying on external ML/Flask servers.
+ */
 class FloodPredictionViewModel : ViewModel() {
 
-    private val _uiState = MutableStateFlow<PredictionUiState>(PredictionUiState.Loading)
-    val uiState: StateFlow<PredictionUiState> = _uiState
+    private val _uiState = MutableStateFlow<PredictionUiState>(PredictionUiState.Neutral)
+    val uiState: StateFlow<PredictionUiState> = _uiState.asStateFlow()
+
+    // Static data for shelters/routes to be used when live data is unavailable
+    private val staticEvacuationData = PredictionResponse(
+        status = "DATA_UNAVAILABLE",
+        riskPercentage = null,
+        evacuationMapUrl = null,
+        riskAssessment = null,
+        evacuationRoutes = listOf(
+            EvacuationRoute("Community Center Alpha", 0.45, "HIGH"),
+            EvacuationRoute("St. Jude School Annex", 0.82, "HIGH"),
+            EvacuationRoute("Central Park Heights", 1.20, "MEDIUM")
+        )
+    )
 
     fun fetchPrediction() {
-        viewModelScope.launch {
-            _uiState.value = PredictionUiState.Loading
-            try {
-                val response = RetrofitClient.instance.getPrediction()
-                _uiState.value = PredictionUiState.Success(response)
-            } catch (e: Exception) {
-                val errorMessage = when {
-                    e is java.net.SocketTimeoutException -> "Connection timeout - server not responding"
-                    e is java.net.ConnectException -> "Cannot connect to server - check if Flask is running"
-                    e is java.net.UnknownHostException -> "Server address not found"
-                    else -> "Network error: ${e.message}"
-                }
-                _uiState.value = PredictionUiState.Error(errorMessage)
-            }
-        }
+        // No longer making network calls. Directly providing neutral/static state.
+        _uiState.value = PredictionUiState.Success(staticEvacuationData)
     }
 }

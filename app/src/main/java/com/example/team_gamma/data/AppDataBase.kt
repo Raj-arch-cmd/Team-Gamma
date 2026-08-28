@@ -26,7 +26,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "resqtech_database"
                 )
-                    .addCallback(DatabaseCallback())
+                    .addCallback(DatabaseCallback(context.applicationContext))
                     .build()
                 INSTANCE = instance
                 instance
@@ -34,13 +34,11 @@ abstract class AppDatabase : RoomDatabase() {
         }
     }
 
-    private class DatabaseCallback : RoomDatabase.Callback() {
+    private class DatabaseCallback(private val context: Context) : RoomDatabase.Callback() {
         override fun onCreate(db: SupportSQLiteDatabase) {
             super.onCreate(db)
-            INSTANCE?.let { database ->
-                CoroutineScope(Dispatchers.IO).launch {
-                    populateInitialData(database.appDao())
-                }
+            CoroutineScope(Dispatchers.IO).launch {
+                populateInitialData(getDatabase(context).appDao())
             }
         }
 

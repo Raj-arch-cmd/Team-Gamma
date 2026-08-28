@@ -1,4 +1,4 @@
-package com.example.team_gamma.FlaskApi
+package com.example.team_gamma.data
 
 import com.google.gson.annotations.SerializedName
 

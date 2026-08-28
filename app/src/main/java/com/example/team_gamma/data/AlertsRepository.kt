@@ -1,7 +1,7 @@
 package com.example.team_gamma.data
 
 
-import com.example.team_gamma.FlaskApi.RetrofitClient
+import com.example.team_gamma.data.RetrofitClient
 import kotlinx.coroutines.delay
 
 class AlertsRepository {

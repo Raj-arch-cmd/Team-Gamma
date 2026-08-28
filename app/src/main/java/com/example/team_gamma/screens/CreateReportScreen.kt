@@ -1,6 +1,7 @@
 package com.example.team_gamma.screens
 
 import android.Manifest
+import android.content.Context
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -27,7 +28,18 @@ import com.example.team_gamma.data.LocalReportsViewModel
 import com.example.team_gamma.data.ReportCategory
 import com.example.team_gamma.data.reportCategories
 import java.io.File
-import java.util.UUID
+
+// Helper function to create a temporary image file
+private fun createImageFile(context: Context): File {
+    // Create an image file name
+    val timeStamp = System.currentTimeMillis()
+    val storageDir = context.externalCacheDir ?: context.cacheDir
+    return File.createTempFile(
+        "JPEG_${timeStamp}_",
+        ".jpg",
+        storageDir
+    )
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -39,12 +51,15 @@ fun CreateReportScreen(
     var description by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf<ReportCategory?>(null) }
     var imageUri by remember { mutableStateOf<Uri?>(null) }
+    var tempImageFile by remember { mutableStateOf<File?>(null) }
 
     val cameraLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicture(),
         onResult = { success ->
-            if (!success) {
-                // Reset URI if photo wasn't taken successfully
+            if (success) {
+                // The URI is already set from the permission launcher
+            } else {
+                // If the user cancels, nullify the URI
                 imageUri = null
             }
         }
@@ -54,12 +69,9 @@ fun CreateReportScreen(
         contract = ActivityResultContracts.RequestPermission(),
         onResult = { isGranted ->
             if (isGranted) {
-                // Create temp file for the image
-                val file = File.createTempFile(
-                    "IMG_${System.currentTimeMillis()}",
-                    ".jpg",
-                    context.externalCacheDir ?: context.cacheDir
-                )
+                // Create the file and get its URI *before* launching the camera
+                val file = createImageFile(context)
+                tempImageFile = file
                 val uri = FileProvider.getUriForFile(
                     context,
                     "${context.packageName}.provider",
@@ -68,8 +80,7 @@ fun CreateReportScreen(
                 imageUri = uri
                 cameraLauncher.launch(uri)
             } else {
-                // Handle permission denied
-                // You might want to show a snackbar or dialog here
+                // Handle permission denied gracefully
             }
         }
     )
@@ -144,7 +155,6 @@ fun CreateReportScreen(
             )
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Using Column with Rows for category selection instead of FlowRow
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -167,7 +177,6 @@ fun CreateReportScreen(
                                 }
                             )
                         }
-                        // Add empty space if the row has only one item
                         if (rowCategories.size == 1) {
                             Spacer(modifier = Modifier.weight(1f))
                         }
