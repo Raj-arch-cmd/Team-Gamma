@@ -4,11 +4,13 @@ package com.example.team_gamma.screens
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
+import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraManager
 import android.media.MediaPlayer
 import android.net.Uri
 import android.os.VibrationEffect
 import android.os.Vibrator
+import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -154,7 +156,12 @@ fun InformationScreen(navController: NavController) {
     LaunchedEffect(isStrobeOn) {
         if (isStrobeOn) {
             while (isActive && isStrobeOn) {
-                toggleFlashlight(context, true)
+                val success = toggleFlashlight(context, true)
+                if (!success) {
+                    isStrobeOn = false
+                    Toast.makeText(context, "Flashlight hardware is unavailable on this device.", Toast.LENGTH_SHORT).show()
+                    break
+                }
                 delay(150)
                 if (!isStrobeOn) break
                 toggleFlashlight(context, false)
@@ -254,10 +261,20 @@ fun InformationScreen(navController: NavController) {
                         )
                         Switch(
                             checked = isFlashlightOn,
-                            onCheckedChange = {
-                                isFlashlightOn = it
-                                if (isStrobeOn) isStrobeOn = false
-                                toggleFlashlight(context, isFlashlightOn)
+                            onCheckedChange = { checked ->
+                                if (checked) {
+                                    val success = toggleFlashlight(context, true)
+                                    if (success) {
+                                        isFlashlightOn = true
+                                        if (isStrobeOn) isStrobeOn = false
+                                    } else {
+                                        isFlashlightOn = false
+                                        Toast.makeText(context, "Flashlight hardware is unavailable on this device.", Toast.LENGTH_SHORT).show()
+                                    }
+                                } else {
+                                    isFlashlightOn = false
+                                    toggleFlashlight(context, false)
+                                }
                                 vibrate()
                             }
                         )
@@ -269,8 +286,20 @@ fun InformationScreen(navController: NavController) {
 
                     Button(
                         onClick = {
-                            isStrobeOn = !isStrobeOn
-                            if (isStrobeOn) isFlashlightOn = false
+                            val nextStrobeState = !isStrobeOn
+                            if (nextStrobeState) {
+                                val cameraManager = context.getSystemService(Context.CAMERA_SERVICE) as? CameraManager
+                                val cameraId = cameraManager?.let { getFlashCameraId(it) }
+                                if (cameraId == null) {
+                                    Toast.makeText(context, "Flashlight hardware is unavailable on this device.", Toast.LENGTH_SHORT).show()
+                                    isStrobeOn = false
+                                } else {
+                                    isStrobeOn = true
+                                    if (isFlashlightOn) isFlashlightOn = false
+                                }
+                            } else {
+                                isStrobeOn = false
+                            }
                             vibrate()
                         },
                         modifier = Modifier.fillMaxWidth(),
@@ -881,13 +910,42 @@ fun EmergencyNumberCard(emergencyContact: EmergencyContact, context: Context, on
     }
 }
 
-// Helper function to control the flashlight
-private fun toggleFlashlight(context: Context, turnOn: Boolean) {
-    try {
-        val cameraManager = context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
-        val cameraId = cameraManager.cameraIdList[0]
-        cameraManager.setTorchMode(cameraId, turnOn)
+// Helper function to find a camera ID that supports a flash unit
+private fun getFlashCameraId(cameraManager: CameraManager): String? {
+    return try {
+        val idList = cameraManager.cameraIdList
+        if (idList.isEmpty()) return null
+
+        // Look for rear camera with flash first
+        for (id in idList) {
+            val characteristics = cameraManager.getCameraCharacteristics(id)
+            val hasFlash = characteristics.get(CameraCharacteristics.FLASH_INFO_AVAILABLE) == true
+            val isBack = characteristics.get(CameraCharacteristics.LENS_FACING) == CameraCharacteristics.LENS_FACING_BACK
+            if (hasFlash && isBack) return id
+        }
+
+        // Fallback to any camera with flash
+        idList.firstOrNull { id ->
+            try {
+                cameraManager.getCameraCharacteristics(id)
+                    .get(CameraCharacteristics.FLASH_INFO_AVAILABLE) == true
+            } catch (_: Exception) {
+                false
+            }
+        }
     } catch (e: Exception) {
-        e.printStackTrace()
+        null
+    }
+}
+
+// Helper function to control the flashlight
+private fun toggleFlashlight(context: Context, turnOn: Boolean): Boolean {
+    return try {
+        val cameraManager = context.getSystemService(Context.CAMERA_SERVICE) as? CameraManager ?: return false
+        val cameraId = getFlashCameraId(cameraManager) ?: return false
+        cameraManager.setTorchMode(cameraId, turnOn)
+        true
+    } catch (e: Exception) {
+        false
     }
 }
