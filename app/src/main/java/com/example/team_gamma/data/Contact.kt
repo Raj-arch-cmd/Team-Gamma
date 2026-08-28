@@ -1,4 +1,4 @@
-package com.example.resqtech.data
+package com.example.team_gamma.data
 
 
 // This data class defines the structure for a Contact.
