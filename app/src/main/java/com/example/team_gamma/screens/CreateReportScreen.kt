@@ -5,14 +5,18 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -68,6 +72,15 @@ fun CreateReportScreen(
         }
     )
 
+    val galleryLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia(),
+        onResult = { uri ->
+            if (uri != null) {
+                capturedPhotoUri = uri
+            }
+        }
+    )
+
     fun launchCamera() {
         val file = createImageFile(context)
         val uri = FileProvider.getUriForFile(
@@ -108,7 +121,7 @@ fun CreateReportScreen(
                 .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Camera section
+            // Camera / Photo section
             Text(
                 "Add Photo Evidence (Optional)",
                 style = MaterialTheme.typography.titleMedium,
@@ -120,38 +133,89 @@ fun CreateReportScreen(
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(200.dp),
-                onClick = {
-                    val hasCameraPermission = ContextCompat.checkSelfPermission(
-                        context,
-                        Manifest.permission.CAMERA
-                    ) == PackageManager.PERMISSION_GRANTED
-
-                    if (hasCameraPermission) {
-                        launchCamera()
-                    } else {
-                        permissionLauncher.launch(Manifest.permission.CAMERA)
-                    }
-                }
+                    .height(200.dp)
             ) {
                 Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
                     if (capturedPhotoUri == null) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(
-                                Icons.Default.CameraAlt,
-                                contentDescription = "Take Photo",
-                                modifier = Modifier.size(48.dp)
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Text(
+                                "Attach a photo to help verify this report",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text("Tap to take a photo")
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                OutlinedButton(
+                                    onClick = {
+                                        val hasCameraPermission = ContextCompat.checkSelfPermission(
+                                            context,
+                                            Manifest.permission.CAMERA
+                                        ) == PackageManager.PERMISSION_GRANTED
+
+                                        if (hasCameraPermission) {
+                                            launchCamera()
+                                        } else {
+                                            permissionLauncher.launch(Manifest.permission.CAMERA)
+                                        }
+                                    }
+                                ) {
+                                    Icon(
+                                        Icons.Default.CameraAlt,
+                                        contentDescription = "Camera",
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Take Photo")
+                                }
+
+                                OutlinedButton(
+                                    onClick = {
+                                        galleryLauncher.launch(
+                                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                        )
+                                    }
+                                ) {
+                                    Icon(
+                                        Icons.Default.PhotoLibrary,
+                                        contentDescription = "Gallery",
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Gallery")
+                                }
+                            }
                         }
                     } else {
-                        Image(
-                            painter = rememberAsyncImagePainter(model = capturedPhotoUri),
-                            contentDescription = "Captured Image",
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop
-                        )
+                        Box(modifier = Modifier.fillMaxSize()) {
+                            Image(
+                                painter = rememberAsyncImagePainter(model = capturedPhotoUri),
+                                contentDescription = "Captured Image",
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
+                            IconButton(
+                                onClick = { capturedPhotoUri = null },
+                                modifier = Modifier
+                                    .align(Alignment.TopEnd)
+                                    .padding(8.dp)
+                            ) {
+                                Surface(
+                                    shape = CircleShape,
+                                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)
+                                ) {
+                                    Icon(
+                                        Icons.Default.Close,
+                                        contentDescription = "Remove Photo",
+                                        modifier = Modifier.padding(4.dp)
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }

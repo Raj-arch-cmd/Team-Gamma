@@ -1,22 +1,33 @@
 package com.example.team_gamma.data
 
+import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.google.firebase.storage.FirebaseStorage
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.ByteArrayOutputStream
 import java.util.UUID
 
 @HiltViewModel
-class LocalReportsViewModel @Inject constructor() : ViewModel() {
+class LocalReportsViewModel @Inject constructor(
+    @ApplicationContext private val context: Context
+) : ViewModel() {
 
     private val firestore = FirebaseFirestore.getInstance()
     private val auth = FirebaseAuth.getInstance()
@@ -91,6 +102,82 @@ class LocalReportsViewModel @Inject constructor() : ViewModel() {
             }
     }
 
+    private suspend fun compressImage(imageUriString: String): ByteArray? {
+        return withContext(Dispatchers.IO) {
+            val startTime = System.currentTimeMillis()
+            try {
+                val uri = Uri.parse(imageUriString)
+
+                // 1. Get original bounds
+                val options = BitmapFactory.Options().apply {
+                    inJustDecodeBounds = true
+                }
+                context.contentResolver.openInputStream(uri)?.use { stream ->
+                    BitmapFactory.decodeStream(stream, null, options)
+                }
+
+                val origWidth = options.outWidth
+                val origHeight = options.outHeight
+                if (origWidth <= 0 || origHeight <= 0) {
+                    Log.e("LocalReportsViewModel", "Failed to decode image bounds for $imageUriString")
+                    return@withContext null
+                }
+
+                val origLengthBytes = try {
+                    context.contentResolver.openAssetFileDescriptor(uri, "r")?.use { it.length } ?: -1L
+                } catch (_: Exception) {
+                    -1L
+                }
+                Log.d("LocalReportsViewModel", "Compression Start -> Orig dimensions: ${origWidth}x${origHeight}, Orig size: ${if (origLengthBytes > 0) "${origLengthBytes / 1024} KB" else "unknown"}")
+
+                // 2. Calculate inSampleSize so max dimension <= 1280px
+                val maxTargetDimension = 1280
+                var sampleSize = 1
+                val maxOrigDimension = Math.max(origWidth, origHeight)
+                while (maxOrigDimension / (sampleSize * 2) >= maxTargetDimension) {
+                    sampleSize *= 2
+                }
+
+                // 3. Decode scaled bitmap
+                val decodeOptions = BitmapFactory.Options().apply {
+                    inSampleSize = sampleSize
+                }
+                val sampleBitmap = context.contentResolver.openInputStream(uri)?.use { stream ->
+                    BitmapFactory.decodeStream(stream, null, decodeOptions)
+                } ?: return@withContext null
+
+                // 4. Exact scale if still > 1280px
+                val currentMax = Math.max(sampleBitmap.width, sampleBitmap.height)
+                val finalBitmap = if (currentMax > maxTargetDimension) {
+                    val scaleFactor = maxTargetDimension.toFloat() / currentMax.toFloat()
+                    val targetW = (sampleBitmap.width * scaleFactor).toInt()
+                    val targetH = (sampleBitmap.height * scaleFactor).toInt()
+                    val scaled = Bitmap.createScaledBitmap(sampleBitmap, targetW, targetH, true)
+                    if (scaled != sampleBitmap) {
+                        sampleBitmap.recycle()
+                    }
+                    scaled
+                } else {
+                    sampleBitmap
+                }
+
+                // 5. Compress to JPEG quality 80%
+                val outputStream = ByteArrayOutputStream()
+                finalBitmap.compress(Bitmap.CompressFormat.JPEG, 80, outputStream)
+                finalBitmap.recycle()
+
+                val byteArray = outputStream.toByteArray()
+                val durationMs = System.currentTimeMillis() - startTime
+                Log.d("LocalReportsViewModel", "Compression Complete -> Final dimensions: ${finalBitmap.width}x${finalBitmap.height}, Final size: ${byteArray.size / 1024} KB, Took: ${durationMs} ms")
+
+                byteArray
+            } catch (e: Exception) {
+                Log.e("LocalReportsViewModel", "Error compressing image $imageUriString", e)
+                null
+            }
+        }
+    }
+
     fun addReport(category: ReportCategory, description: String, imageUriString: String?, onComplete: (Boolean) -> Unit = {}) {
         val reportId = UUID.randomUUID().toString()
         val currentUserId = auth.currentUser?.uid ?: "anonymous"
@@ -99,6 +186,9 @@ class LocalReportsViewModel @Inject constructor() : ViewModel() {
         _isLoading.value = true
 
         val saveFirestoreReport = { downloadUrl: String? ->
+            val firestoreStartTime = System.currentTimeMillis()
+            Log.d("LocalReportsViewModel", "Firestore Write Start -> reportId: $reportId")
+
             val reportData = hashMapOf(
                 "id" to reportId,
                 "categoryName" to category.name,
@@ -118,7 +208,8 @@ class LocalReportsViewModel @Inject constructor() : ViewModel() {
                 .set(reportData)
                 .addOnSuccessListener {
                     _isLoading.value = false
-                    Log.d("LocalReportsViewModel", "Report $reportId written to Firestore successfully")
+                    val firestoreDurationMs = System.currentTimeMillis() - firestoreStartTime
+                    Log.d("LocalReportsViewModel", "Firestore Write Complete -> Took: ${firestoreDurationMs} ms")
                     onComplete(true)
                 }
                 .addOnFailureListener { e ->
@@ -130,27 +221,35 @@ class LocalReportsViewModel @Inject constructor() : ViewModel() {
         }
 
         if (!imageUriString.isNullOrBlank()) {
-            try {
-                val localUri = Uri.parse(imageUriString)
-                val storageRef = storage.reference.child("reports_photos/$reportId.jpg")
-                storageRef.putFile(localUri)
-                    .addOnSuccessListener {
-                        storageRef.downloadUrl
-                            .addOnSuccessListener { downloadUrl ->
-                                saveFirestoreReport(downloadUrl.toString())
-                            }
-                            .addOnFailureListener { e ->
-                                Log.e("LocalReportsViewModel", "Failed to get download URL, saving report without cloud image", e)
-                                saveFirestoreReport(null)
-                            }
-                    }
-                    .addOnFailureListener { e ->
-                        Log.e("LocalReportsViewModel", "Failed to upload image to Firebase Storage, saving report without cloud image", e)
-                        saveFirestoreReport(null)
-                    }
-            } catch (e: Exception) {
-                Log.e("LocalReportsViewModel", "Error parsing image Uri, saving report without cloud image", e)
-                saveFirestoreReport(null)
+            viewModelScope.launch {
+                val compressedBytes = compressImage(imageUriString)
+                if (compressedBytes != null) {
+                    val uploadStartTime = System.currentTimeMillis()
+                    Log.d("LocalReportsViewModel", "Storage Upload Start -> reportId: $reportId, payload size: ${compressedBytes.size / 1024} KB")
+
+                    val storageRef = storage.reference.child("reports_photos/$reportId.jpg")
+                    storageRef.putBytes(compressedBytes)
+                        .addOnSuccessListener {
+                            val uploadDurationMs = System.currentTimeMillis() - uploadStartTime
+                            Log.d("LocalReportsViewModel", "Storage Upload Complete -> Took: ${uploadDurationMs} ms")
+
+                            storageRef.downloadUrl
+                                .addOnSuccessListener { downloadUrl ->
+                                    saveFirestoreReport(downloadUrl.toString())
+                                }
+                                .addOnFailureListener { e ->
+                                    Log.e("LocalReportsViewModel", "Failed to get download URL, saving report without cloud image", e)
+                                    saveFirestoreReport(null)
+                                }
+                        }
+                        .addOnFailureListener { e ->
+                            Log.e("LocalReportsViewModel", "Failed to upload image bytes to Firebase Storage, saving report without cloud image", e)
+                            saveFirestoreReport(null)
+                        }
+                } else {
+                    Log.w("LocalReportsViewModel", "Compression returned null, saving report without cloud image")
+                    saveFirestoreReport(null)
+                }
             }
         } else {
             saveFirestoreReport(null)
