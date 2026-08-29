@@ -1,9 +1,13 @@
 package com.example.team_gamma.onboarding
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.provider.ContactsContract
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -49,38 +53,68 @@ fun EmergencyContactScreen(
         contract = ActivityResultContracts.PickContact(),
         onResult = { contactUri: Uri? ->
             contactUri?.let { uri ->
-                val cursor = context.contentResolver.query(uri, null, null, null, null)
-                cursor?.use { c ->
-                    if (c.moveToFirst()) {
-                        val idIndex = c.getColumnIndex(ContactsContract.Contacts._ID)
-                        val nameIndex = c.getColumnIndex(ContactsContract.Contacts.DISPLAY_NAME)
-                        val hasPhoneIndex = c.getColumnIndex(ContactsContract.Contacts.HAS_PHONE_NUMBER)
-                        val contactId = c.getString(idIndex)
-                        val name = c.getString(nameIndex)
-                        if (c.getInt(hasPhoneIndex) > 0) {
-                            val phoneCursor = context.contentResolver.query(
-                                ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
-                                null,
-                                ContactsContract.CommonDataKinds.Phone.CONTACT_ID + " = ?",
-                                arrayOf(contactId),
-                                null
-                            )
-                            phoneCursor?.use { pc ->
-                                if (pc.moveToFirst()) {
-                                    val numberIndex = pc.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER)
-                                    val number = pc.getString(numberIndex)
-                                    contactsViewModel.addContact(Contact(name, number))
-                                    scope.launch {
-                                        snackbarHostState.showSnackbar("$name added successfully")
+                try {
+                    val cursor = context.contentResolver.query(uri, null, null, null, null)
+                    cursor?.use { c ->
+                        if (c.moveToFirst()) {
+                            val idIndex = c.getColumnIndex(ContactsContract.Contacts._ID)
+                            val nameIndex = c.getColumnIndex(ContactsContract.Contacts.DISPLAY_NAME)
+                            val hasPhoneIndex = c.getColumnIndex(ContactsContract.Contacts.HAS_PHONE_NUMBER)
+                            val contactId = c.getString(idIndex)
+                            val name = c.getString(nameIndex)
+                            if (c.getInt(hasPhoneIndex) > 0) {
+                                val phoneCursor = context.contentResolver.query(
+                                    ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
+                                    null,
+                                    ContactsContract.CommonDataKinds.Phone.CONTACT_ID + " = ?",
+                                    arrayOf(contactId),
+                                    null
+                                )
+                                phoneCursor?.use { pc ->
+                                    if (pc.moveToFirst()) {
+                                        val numberIndex = pc.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER)
+                                        val number = pc.getString(numberIndex)
+                                        contactsViewModel.addContact(Contact(name, number))
+                                        scope.launch {
+                                            snackbarHostState.showSnackbar("$name added successfully")
+                                        }
                                     }
                                 }
                             }
                         }
                     }
+                } catch (_: SecurityException) {
+                    Toast.makeText(context, "Contacts permission is required to select contacts.", Toast.LENGTH_LONG).show()
+                } catch (_: Exception) {
+                    Toast.makeText(context, "Could not load contact details.", Toast.LENGTH_SHORT).show()
                 }
             }
         }
     )
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+        onResult = { isGranted ->
+            if (isGranted) {
+                contactPickerLauncher.launch(null)
+            } else {
+                Toast.makeText(context, "Contacts permission is required to select contacts.", Toast.LENGTH_LONG).show()
+            }
+        }
+    )
+
+    fun launchContactPicker() {
+        val hasPermission = ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.READ_CONTACTS
+        ) == PackageManager.PERMISSION_GRANTED
+
+        if (hasPermission) {
+            contactPickerLauncher.launch(null)
+        } else {
+            permissionLauncher.launch(Manifest.permission.READ_CONTACTS)
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -92,7 +126,7 @@ fun EmergencyContactScreen(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         floatingActionButton = {
             if (selectedContacts.isNotEmpty()) {
-                FloatingActionButton(onClick = { contactPickerLauncher.launch(null) }) {
+                FloatingActionButton(onClick = { launchContactPicker() }) {
                     Icon(Icons.Default.Add, contentDescription = "Add another contact")
                 }
             }
@@ -106,7 +140,7 @@ fun EmergencyContactScreen(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             if (selectedContacts.isEmpty()) {
-                EmptyStateContent(onAddContact = { contactPickerLauncher.launch(null) })
+                EmptyStateContent(onAddContact = { launchContactPicker() })
             } else {
                 ContactListContent(
                     contacts = selectedContacts,

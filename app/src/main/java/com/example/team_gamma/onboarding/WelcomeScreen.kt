@@ -79,12 +79,8 @@ fun WelcomeScreen(onPermissionsGranted: () -> Unit) {
 
     val multiplePermissionsLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
-    ) { permissionsMap ->
-        if (permissionsMap.all { it.value }) {
-            onPermissionsGranted()
-        } else {
-            // Optional: Show a toast indicating permissions are required.
-        }
+    ) { _ ->
+        onPermissionsGranted()
     }
 
     Column(
