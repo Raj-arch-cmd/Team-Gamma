@@ -1,11 +1,13 @@
 package com.example.team_gamma.data
 
+import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
+import com.google.firebase.storage.FirebaseStorage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -18,6 +20,11 @@ class LocalReportsViewModel @Inject constructor() : ViewModel() {
 
     private val firestore = FirebaseFirestore.getInstance()
     private val auth = FirebaseAuth.getInstance()
+    private val storage = try {
+        FirebaseStorage.getInstance("gs://teamgamma-b6f6f.firebasestorage.app")
+    } catch (_: Exception) {
+        FirebaseStorage.getInstance()
+    }
 
     private val _reports = MutableStateFlow<List<LocalReport>>(emptyList())
     val reports: StateFlow<List<LocalReport>> = _reports.asStateFlow()
@@ -84,35 +91,70 @@ class LocalReportsViewModel @Inject constructor() : ViewModel() {
             }
     }
 
-    fun addReport(category: ReportCategory, description: String, imageUri: String?) {
+    fun addReport(category: ReportCategory, description: String, imageUriString: String?, onComplete: (Boolean) -> Unit = {}) {
         val reportId = UUID.randomUUID().toString()
         val currentUserId = auth.currentUser?.uid ?: "anonymous"
         val createdAt = System.currentTimeMillis()
 
-        val reportData = hashMapOf(
-            "id" to reportId,
-            "categoryName" to category.name,
-            "description" to description,
-            "locationName" to "Pimpri-Chinchwad",
-            "timestamp" to "Just now",
-            "createdAt" to createdAt,
-            "imageUrl" to imageUri,
-            "confirmations" to 0,
-            "confirmedUserIds" to emptyList<String>(),
-            "userId" to currentUserId,
-            "isResolved" to false
-        )
+        _isLoading.value = true
 
-        firestore.collection("reports")
-            .document(reportId)
-            .set(reportData)
-            .addOnSuccessListener {
-                Log.d("LocalReportsViewModel", "Report $reportId written to Firestore successfully")
+        val saveFirestoreReport = { downloadUrl: String? ->
+            val reportData = hashMapOf(
+                "id" to reportId,
+                "categoryName" to category.name,
+                "description" to description,
+                "locationName" to "Pimpri-Chinchwad",
+                "timestamp" to "Just now",
+                "createdAt" to createdAt,
+                "imageUrl" to downloadUrl,
+                "confirmations" to 0,
+                "confirmedUserIds" to emptyList<String>(),
+                "userId" to currentUserId,
+                "isResolved" to false
+            )
+
+            firestore.collection("reports")
+                .document(reportId)
+                .set(reportData)
+                .addOnSuccessListener {
+                    _isLoading.value = false
+                    Log.d("LocalReportsViewModel", "Report $reportId written to Firestore successfully")
+                    onComplete(true)
+                }
+                .addOnFailureListener { e ->
+                    _isLoading.value = false
+                    Log.e("LocalReportsViewModel", "Failed to write report $reportId to Firestore", e)
+                    _errorMessage.value = "Failed to save report: ${e.localizedMessage}"
+                    onComplete(false)
+                }
+        }
+
+        if (!imageUriString.isNullOrBlank()) {
+            try {
+                val localUri = Uri.parse(imageUriString)
+                val storageRef = storage.reference.child("reports_photos/$reportId.jpg")
+                storageRef.putFile(localUri)
+                    .addOnSuccessListener {
+                        storageRef.downloadUrl
+                            .addOnSuccessListener { downloadUrl ->
+                                saveFirestoreReport(downloadUrl.toString())
+                            }
+                            .addOnFailureListener { e ->
+                                Log.e("LocalReportsViewModel", "Failed to get download URL, saving report without cloud image", e)
+                                saveFirestoreReport(null)
+                            }
+                    }
+                    .addOnFailureListener { e ->
+                        Log.e("LocalReportsViewModel", "Failed to upload image to Firebase Storage, saving report without cloud image", e)
+                        saveFirestoreReport(null)
+                    }
+            } catch (e: Exception) {
+                Log.e("LocalReportsViewModel", "Error parsing image Uri, saving report without cloud image", e)
+                saveFirestoreReport(null)
             }
-            .addOnFailureListener { e ->
-                Log.e("LocalReportsViewModel", "Failed to write report $reportId to Firestore", e)
-                _errorMessage.value = "Failed to save report: ${e.localizedMessage}"
-            }
+        } else {
+            saveFirestoreReport(null)
+        }
     }
 
     fun toggleConfirmation(report: LocalReport) {

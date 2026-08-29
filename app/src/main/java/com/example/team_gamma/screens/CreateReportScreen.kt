@@ -2,6 +2,7 @@ package com.example.team_gamma.screens
 
 import android.Manifest
 import android.content.Context
+import android.content.pm.PackageManager
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -20,6 +21,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
@@ -31,7 +33,6 @@ import java.io.File
 
 // Helper function to create a temporary image file
 private fun createImageFile(context: Context): File {
-    // Create an image file name
     val timeStamp = System.currentTimeMillis()
     val storageDir = context.externalCacheDir ?: context.cacheDir
     return File.createTempFile(
@@ -50,37 +51,39 @@ fun CreateReportScreen(
     val context = LocalContext.current
     var description by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf<ReportCategory?>(null) }
-    var imageUri by remember { mutableStateOf<Uri?>(null) }
-    var tempImageFile by remember { mutableStateOf<File?>(null) }
+    
+    // UI state for rendering the captured image preview
+    var capturedPhotoUri by remember { mutableStateOf<Uri?>(null) }
+    // Temporary URI passed to the camera launcher
+    var pendingPhotoUri by remember { mutableStateOf<Uri?>(null) }
+    var isSubmitting by remember { mutableStateOf(false) }
 
     val cameraLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicture(),
         onResult = { success ->
-            if (success) {
-                // The URI is already set from the permission launcher
-            } else {
-                // If the user cancels, nullify the URI
-                imageUri = null
+            if (success && pendingPhotoUri != null) {
+                // Update UI state upon camera success to trigger Compose & Coil image preview
+                capturedPhotoUri = pendingPhotoUri
             }
         }
     )
+
+    fun launchCamera() {
+        val file = createImageFile(context)
+        val uri = FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.provider",
+            file
+        )
+        pendingPhotoUri = uri
+        cameraLauncher.launch(uri)
+    }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
         onResult = { isGranted ->
             if (isGranted) {
-                // Create the file and get its URI *before* launching the camera
-                val file = createImageFile(context)
-                tempImageFile = file
-                val uri = FileProvider.getUriForFile(
-                    context,
-                    "${context.packageName}.provider",
-                    file
-                )
-                imageUri = uri
-                cameraLauncher.launch(uri)
-            } else {
-                // Handle permission denied gracefully
+                launchCamera()
             }
         }
     )
@@ -119,11 +122,20 @@ fun CreateReportScreen(
                     .fillMaxWidth()
                     .height(200.dp),
                 onClick = {
-                    permissionLauncher.launch(Manifest.permission.CAMERA)
+                    val hasCameraPermission = ContextCompat.checkSelfPermission(
+                        context,
+                        Manifest.permission.CAMERA
+                    ) == PackageManager.PERMISSION_GRANTED
+
+                    if (hasCameraPermission) {
+                        launchCamera()
+                    } else {
+                        permissionLauncher.launch(Manifest.permission.CAMERA)
+                    }
                 }
             ) {
                 Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                    if (imageUri == null) {
+                    if (capturedPhotoUri == null) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Icon(
                                 Icons.Default.CameraAlt,
@@ -135,7 +147,7 @@ fun CreateReportScreen(
                         }
                     } else {
                         Image(
-                            painter = rememberAsyncImagePainter(model = imageUri),
+                            painter = rememberAsyncImagePainter(model = capturedPhotoUri),
                             contentDescription = "Captured Image",
                             modifier = Modifier.fillMaxSize(),
                             contentScale = ContentScale.Crop
@@ -202,17 +214,29 @@ fun CreateReportScreen(
             // Submit button
             Button(
                 onClick = {
-                    if (selectedCategory != null && description.isNotBlank()) {
-                        viewModel.addReport(selectedCategory!!, description, imageUri?.toString())
-                        navController.popBackStack()
+                    if (selectedCategory != null && description.isNotBlank() && !isSubmitting) {
+                        isSubmitting = true
+                        viewModel.addReport(selectedCategory!!, description, capturedPhotoUri?.toString()) { success ->
+                            isSubmitting = false
+                            if (success) {
+                                navController.popBackStack()
+                            }
+                        }
                     }
                 },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(50.dp),
-                enabled = selectedCategory != null && description.isNotBlank()
+                enabled = selectedCategory != null && description.isNotBlank() && !isSubmitting
             ) {
-                Text("Submit Report", style = MaterialTheme.typography.bodyLarge)
+                if (isSubmitting) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        color = MaterialTheme.colorScheme.onPrimary
+                    )
+                } else {
+                    Text("Submit Report", style = MaterialTheme.typography.bodyLarge)
+                }
             }
         }
     }
