@@ -183,4 +183,46 @@ class LocalReportsViewModel @Inject constructor() : ViewModel() {
             }
         }
     }
+
+    fun deleteReport(report: LocalReport, onComplete: (Boolean) -> Unit = {}) {
+        val currentUserId = auth.currentUser?.uid
+        if (currentUserId.isNullOrBlank() || currentUserId != report.userId || report.userId == "anonymous") {
+            _errorMessage.value = "You are not authorized to delete this report."
+            onComplete(false)
+            return
+        }
+
+        _isLoading.value = true
+
+        firestore.collection("reports")
+            .document(report.id)
+            .delete()
+            .addOnSuccessListener {
+                _isLoading.value = false
+                Log.d("LocalReportsViewModel", "Report ${report.id} deleted from Firestore successfully")
+                _errorMessage.value = null
+
+                // If report has an image, delete the corresponding image from Firebase Storage
+                if (!report.imageUrl.isNullOrBlank()) {
+                    try {
+                        val storageRef = storage.reference.child("reports_photos/${report.id}.jpg")
+                        storageRef.delete().addOnSuccessListener {
+                            Log.d("LocalReportsViewModel", "Storage image for report ${report.id} deleted successfully")
+                        }.addOnFailureListener { e ->
+                            Log.e("LocalReportsViewModel", "Failed to delete storage image for report ${report.id}", e)
+                        }
+                    } catch (e: Exception) {
+                        Log.e("LocalReportsViewModel", "Error deleting image from Storage", e)
+                    }
+                }
+
+                onComplete(true)
+            }
+            .addOnFailureListener { e ->
+                _isLoading.value = false
+                Log.e("LocalReportsViewModel", "Failed to delete report ${report.id} from Firestore", e)
+                _errorMessage.value = "Failed to delete report: ${e.localizedMessage}"
+                onComplete(false)
+            }
+    }
 }

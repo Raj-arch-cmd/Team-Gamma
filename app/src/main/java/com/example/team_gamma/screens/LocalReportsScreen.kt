@@ -6,13 +6,12 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.ThumbUp
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
@@ -115,7 +114,8 @@ fun LocalReportsScreen(
                         ReportCard(
                             report = report,
                             currentUserId = currentUserId,
-                            onToggleConfirmation = { viewModel.toggleConfirmation(report) }
+                            onToggleConfirmation = { viewModel.toggleConfirmation(report) },
+                            onDeleteReport = { viewModel.deleteReport(report) }
                         )
                     }
                 }
@@ -131,9 +131,35 @@ fun LocalReportsScreen(
 fun ReportCard(
     report: LocalReport,
     currentUserId: String?,
-    onToggleConfirmation: () -> Unit
+    onToggleConfirmation: () -> Unit,
+    onDeleteReport: () -> Unit
 ) {
     val hasConfirmed = currentUserId != null && report.confirmedUserIds.contains(currentUserId)
+    val isOwner = currentUserId != null && currentUserId == report.userId && report.userId.isNotBlank() && report.userId != "anonymous"
+    var showDeleteDialog by remember { mutableStateOf(false) }
+
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("Delete Report?") },
+            text = { Text("Are you sure you want to delete this report? This action cannot be undone.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showDeleteDialog = false
+                        onDeleteReport()
+                    }
+                ) {
+                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -151,7 +177,7 @@ fun ReportCard(
                 )
             }
             Column(modifier = Modifier.padding(16.dp)) {
-                // Checkbox and title row
+                // Checkbox, title and delete button row
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.fillMaxWidth()
@@ -178,6 +204,19 @@ fun ReportCard(
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.weight(1f)
                     )
+
+                    if (isOwner) {
+                        IconButton(
+                            onClick = { showDeleteDialog = true },
+                            modifier = Modifier.size(24.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.Delete,
+                                contentDescription = "Delete Report",
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
