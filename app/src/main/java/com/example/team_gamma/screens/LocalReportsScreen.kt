@@ -1,12 +1,12 @@
 package com.example.team_gamma.screens
 
-
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.ThumbUp
 import androidx.compose.material3.*
@@ -24,6 +24,7 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.team_gamma.data.LocalReport
 import com.example.team_gamma.data.LocalReportsViewModel
+import com.google.firebase.auth.FirebaseAuth
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -32,6 +33,9 @@ fun LocalReportsScreen(
     viewModel: LocalReportsViewModel = hiltViewModel()
 ) {
     val reports by viewModel.reports.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
+    val errorMessage by viewModel.errorMessage.collectAsState()
+    val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
 
     Scaffold(
         topBar = {
@@ -43,58 +47,100 @@ fun LocalReportsScreen(
             }
         }
     ) { innerPadding ->
-        if (reports.isEmpty()) {
-            Box(
-                modifier = Modifier.fillMaxSize().padding(innerPadding),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+        ) {
+            if (errorMessage != null) {
+                Surface(
+                    color = MaterialTheme.colorScheme.errorContainer,
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
-                        text = "505",
-                        style = MaterialTheme.typography.displayLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    Text(
-                        text = "This screen will show a live feed of safety reports from other users in your community.",
-                        textAlign = TextAlign.Center
+                        text = errorMessage ?: "",
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        modifier = Modifier.padding(12.dp),
+                        style = MaterialTheme.typography.bodyMedium
                     )
                 }
             }
-        } else {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
-            ) {
+
+            if (isLoading && reports.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .weight(1f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
+                }
+            } else if (reports.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .weight(1f)
+                        .padding(24.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Info,
+                            contentDescription = "No Reports",
+                            modifier = Modifier.size(48.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Text(
+                            text = "No Live Community Reports",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "There are no reports submitted in your area yet. Be the first to submit a community safety alert.",
+                            textAlign = TextAlign.Center,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                }
+            } else {
                 LazyColumn(
                     modifier = Modifier.weight(1f),
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     items(reports) { report ->
-                        ReportCard(report = report)
+                        ReportCard(
+                            report = report,
+                            currentUserId = currentUserId,
+                            onToggleConfirmation = { viewModel.toggleConfirmation(report) }
+                        )
                     }
                 }
-
-                // "Make a Report" section
-                MakeReportSection(navController)
             }
+
+            // "Make a Report" section at the bottom
+            MakeReportSection(navController)
         }
     }
 }
 
 @Composable
-fun ReportCard(report: LocalReport) {
+fun ReportCard(
+    report: LocalReport,
+    currentUserId: String?,
+    onToggleConfirmation: () -> Unit
+) {
+    val hasConfirmed = currentUserId != null && report.confirmedUserIds.contains(currentUserId)
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         elevation = CardDefaults.cardElevation(4.dp)
     ) {
         Column {
-            if (report.imageUrl != null) {
+            if (!report.imageUrl.isNullOrBlank()) {
                 AsyncImage(
                     model = report.imageUrl,
                     contentDescription = "Report Image",
@@ -110,7 +156,6 @@ fun ReportCard(report: LocalReport) {
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    // Checkbox - using filled for completed, outline for pending
                     if (report.isResolved) {
                         Icon(
                             Icons.Default.CheckCircle,
@@ -158,18 +203,22 @@ fun ReportCard(report: LocalReport) {
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
 
-                    // Confirm button - properly aligned
+                    // Confirm button
                     TextButton(
-                        onClick = { /* TODO: Handle confirmation/upvote */ },
+                        onClick = onToggleConfirmation,
                         modifier = Modifier.wrapContentWidth()
                     ) {
                         Icon(
                             Icons.Default.ThumbUp,
                             contentDescription = "Confirm",
+                            tint = if (hasConfirmed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(16.dp)
                         )
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text(text = "${report.confirmations} Confirm")
+                        Text(
+                            text = "${report.confirmations} Confirm",
+                            color = if (hasConfirmed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 }
             }
