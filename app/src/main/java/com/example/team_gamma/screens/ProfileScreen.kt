@@ -56,6 +56,14 @@ fun ProfileScreen(
     val emergencyInstructions by profileViewModel.emergencyInstructions.collectAsState()
     val profileImageUri by profileViewModel.profileImageUri.collectAsState()
     val profileCompletion by profileViewModel.profileCompletion.collectAsState()
+    val currentUser by authViewModel.currentUser.collectAsState()
+
+    // Sync profile from Firestore whenever the authenticated user ID changes
+    LaunchedEffect(currentUser?.uid) {
+        currentUser?.uid?.let { uid ->
+            profileViewModel.loadProfileForUser(uid)
+        }
+    }
 
     var isEditing by remember { mutableStateOf(false) }
 

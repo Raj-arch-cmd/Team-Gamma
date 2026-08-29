@@ -1,10 +1,11 @@
 package com.example.team_gamma.data
 
-
 import android.app.Application
-import android.net.Uri
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.*
@@ -14,8 +15,76 @@ import kotlinx.coroutines.launch
 class ProfileViewModel @Inject constructor(application: Application) : AndroidViewModel(application) {
 
     private val appDao = AppDatabase.getDatabase(application).appDao()
+    private val firestore = FirebaseFirestore.getInstance()
+    private val auth = FirebaseAuth.getInstance()
 
     private val profileFlow: Flow<ProfileEntity?> = appDao.getProfile()
+
+    init {
+        // Sync profile from Firestore on launch if user is authenticated
+        auth.currentUser?.uid?.let { uid ->
+            fetchProfileFromFirestore(uid)
+        }
+    }
+
+    fun loadProfileForUser(uid: String) {
+        fetchProfileFromFirestore(uid)
+    }
+
+    private fun fetchProfileFromFirestore(uid: String) {
+        viewModelScope.launch {
+            firestore.collection("users").document(uid).get()
+                .addOnSuccessListener { document ->
+                    if (document != null && document.exists()) {
+                        val profileEntity = ProfileEntity(
+                            id = 1,
+                            userName = document.getString("userName") ?: "",
+                            bloodType = document.getString("bloodType") ?: "",
+                            allergies = document.getString("allergies") ?: "",
+                            medicalConditions = document.getString("medicalConditions") ?: "",
+                            email = document.getString("email") ?: (auth.currentUser?.email ?: ""),
+                            phone = document.getString("phone") ?: "",
+                            emergencyContact = document.getString("emergencyContact") ?: "",
+                            dateOfBirth = document.getString("dateOfBirth") ?: "",
+                            gender = document.getString("gender") ?: "",
+                            weight = document.getString("weight") ?: "",
+                            height = document.getString("height") ?: "",
+                            address = document.getString("address") ?: "",
+                            emergencyInstructions = document.getString("emergencyInstructions") ?: "",
+                            profileImageUri = document.getString("profileImageUri")
+                        )
+                        viewModelScope.launch {
+                            appDao.insertProfile(profileEntity)
+                        }
+                    } else {
+                        // New user without Firestore profile: initialize clean profile with Auth email
+                        val newProfile = ProfileEntity(
+                            id = 1,
+                            userName = auth.currentUser?.displayName ?: "",
+                            bloodType = "",
+                            allergies = "",
+                            medicalConditions = "",
+                            email = auth.currentUser?.email ?: "",
+                            phone = "",
+                            emergencyContact = "",
+                            dateOfBirth = "",
+                            gender = "",
+                            weight = "",
+                            height = "",
+                            address = "",
+                            emergencyInstructions = "",
+                            profileImageUri = null
+                        )
+                        viewModelScope.launch {
+                            appDao.insertProfile(newProfile)
+                        }
+                    }
+                }
+                .addOnFailureListener { e ->
+                    Log.e("ProfileViewModel", "Failed to load profile from Firestore for UID $uid", e)
+                }
+        }
+    }
 
     // Expose all the fields from the database as StateFlows
     val userName: StateFlow<String> = profileFlow.map { it?.userName ?: "" }.stateIn(viewModelScope, SharingStarted.Eagerly, "")
@@ -38,8 +107,37 @@ class ProfileViewModel @Inject constructor(application: Application) : AndroidVi
             profileFlow.firstOrNull()?.let { currentProfile ->
                 val updatedProfile = updateAction(currentProfile)
                 appDao.insertProfile(updatedProfile)
+                syncProfileToFirestore(updatedProfile)
             }
         }
+    }
+
+    private fun syncProfileToFirestore(profile: ProfileEntity) {
+        val uid = auth.currentUser?.uid ?: return
+        val profileMap = hashMapOf(
+            "userName" to profile.userName,
+            "bloodType" to profile.bloodType,
+            "allergies" to profile.allergies,
+            "medicalConditions" to profile.medicalConditions,
+            "email" to profile.email,
+            "phone" to profile.phone,
+            "emergencyContact" to profile.emergencyContact,
+            "dateOfBirth" to profile.dateOfBirth,
+            "gender" to profile.gender,
+            "weight" to profile.weight,
+            "height" to profile.height,
+            "address" to profile.address,
+            "emergencyInstructions" to profile.emergencyInstructions,
+            "profileImageUri" to profile.profileImageUri
+        )
+
+        firestore.collection("users").document(uid).set(profileMap)
+            .addOnSuccessListener {
+                Log.d("ProfileViewModel", "Profile synced to Firestore for UID: $uid")
+            }
+            .addOnFailureListener { e ->
+                Log.e("ProfileViewModel", "Failed to sync profile to Firestore for UID: $uid", e)
+            }
     }
 
     // Update functions for all fields
@@ -107,10 +205,11 @@ class ProfileViewModel @Inject constructor(application: Application) : AndroidVi
                 emergencyInstructions = emergencyInstructions
             )
             appDao.insertProfile(updatedProfile)
+            syncProfileToFirestore(updatedProfile)
         }
     }
 
-    // FIX: Properly save profile image URI to database
+    // Properly save profile image URI to database
     fun updateProfileImageUri(uri: String?) = updateProfile { it.copy(profileImageUri = uri) }
 
     // Profile completion calculation

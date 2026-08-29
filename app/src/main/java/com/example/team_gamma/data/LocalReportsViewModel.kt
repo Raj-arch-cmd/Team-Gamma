@@ -108,13 +108,19 @@ class LocalReportsViewModel @Inject constructor(
             try {
                 val uri = Uri.parse(imageUriString)
 
+                // Read input stream bytes ONCE into memory to work with all Camera and Gallery content Uris
+                val rawBytes = context.contentResolver.openInputStream(uri)?.use { stream ->
+                    stream.readBytes()
+                } ?: return@withContext null
+
+                val origSizeKb = rawBytes.size / 1024
+                Log.d("LocalReportsViewModel", "Compression Start -> Raw input byte size: ${origSizeKb} KB")
+
                 // 1. Get original bounds
                 val options = BitmapFactory.Options().apply {
                     inJustDecodeBounds = true
                 }
-                context.contentResolver.openInputStream(uri)?.use { stream ->
-                    BitmapFactory.decodeStream(stream, null, options)
-                }
+                BitmapFactory.decodeByteArray(rawBytes, 0, rawBytes.size, options)
 
                 val origWidth = options.outWidth
                 val origHeight = options.outHeight
@@ -123,28 +129,20 @@ class LocalReportsViewModel @Inject constructor(
                     return@withContext null
                 }
 
-                val origLengthBytes = try {
-                    context.contentResolver.openAssetFileDescriptor(uri, "r")?.use { it.length } ?: -1L
-                } catch (_: Exception) {
-                    -1L
-                }
-                Log.d("LocalReportsViewModel", "Compression Start -> Orig dimensions: ${origWidth}x${origHeight}, Orig size: ${if (origLengthBytes > 0) "${origLengthBytes / 1024} KB" else "unknown"}")
-
                 // 2. Calculate inSampleSize so max dimension <= 1280px
                 val maxTargetDimension = 1280
                 var sampleSize = 1
                 val maxOrigDimension = Math.max(origWidth, origHeight)
-                while (maxOrigDimension / (sampleSize * 2) >= maxTargetDimension) {
+                while (maxOrigDimension / sampleSize > maxTargetDimension) {
                     sampleSize *= 2
                 }
 
-                // 3. Decode scaled bitmap
+                // 3. Decode scaled bitmap from raw bytes
                 val decodeOptions = BitmapFactory.Options().apply {
                     inSampleSize = sampleSize
                 }
-                val sampleBitmap = context.contentResolver.openInputStream(uri)?.use { stream ->
-                    BitmapFactory.decodeStream(stream, null, decodeOptions)
-                } ?: return@withContext null
+                val sampleBitmap = BitmapFactory.decodeByteArray(rawBytes, 0, rawBytes.size, decodeOptions)
+                    ?: return@withContext null
 
                 // 4. Exact scale if still > 1280px
                 val currentMax = Math.max(sampleBitmap.width, sampleBitmap.height)
@@ -164,11 +162,13 @@ class LocalReportsViewModel @Inject constructor(
                 // 5. Compress to JPEG quality 80%
                 val outputStream = ByteArrayOutputStream()
                 finalBitmap.compress(Bitmap.CompressFormat.JPEG, 80, outputStream)
+                val finalWidth = finalBitmap.width
+                val finalHeight = finalBitmap.height
                 finalBitmap.recycle()
 
                 val byteArray = outputStream.toByteArray()
                 val durationMs = System.currentTimeMillis() - startTime
-                Log.d("LocalReportsViewModel", "Compression Complete -> Final dimensions: ${finalBitmap.width}x${finalBitmap.height}, Final size: ${byteArray.size / 1024} KB, Took: ${durationMs} ms")
+                Log.d("LocalReportsViewModel", "Compression Complete -> Final dimensions: ${finalWidth}x${finalHeight}, Final size: ${byteArray.size / 1024} KB, Took: ${durationMs} ms")
 
                 byteArray
             } catch (e: Exception) {

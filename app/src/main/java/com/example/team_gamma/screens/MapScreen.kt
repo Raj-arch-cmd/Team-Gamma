@@ -1,6 +1,5 @@
 package com.example.team_gamma.screens
 
-
 import android.Manifest
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -11,31 +10,41 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
 import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
+import com.google.android.gms.tasks.CancellationTokenSource
 import com.google.maps.android.compose.*
 import kotlinx.coroutines.launch
+
+// Standard regional default starting location
+private val DEFAULT_LOCATION = LatLng(18.5204, 73.8567)
 
 @Composable
 fun MapScreen() {
     val context = LocalContext.current
 
-    // Launcher for requesting location permission
-    val locationPermissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission(),
-        onResult = { granted -> /* Do nothing, state updates automatically */ }
-    )
-
-    // Check if permission is granted
+    // Check if location permission is granted
     var hasLocationPermission by remember {
         mutableStateOf(
             ContextCompat.checkSelfPermission(
                 context,
                 Manifest.permission.ACCESS_FINE_LOCATION
+            ) == PackageManager.PERMISSION_GRANTED || ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.ACCESS_COARSE_LOCATION
             ) == PackageManager.PERMISSION_GRANTED
         )
     }
+
+    // Launcher for requesting location permission
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+        onResult = { granted ->
+            hasLocationPermission = granted
+        }
+    )
 
     // Request permission if not granted
     LaunchedEffect(Unit) {
@@ -44,11 +53,12 @@ fun MapScreen() {
         }
     }
 
-
+    // Camera state starting at standard default position
     val cameraPositionState = rememberCameraPositionState {
-        // Use the CameraPosition constructor properly
-        position = CameraPosition(LatLng(28.6139, 77.2090), 12f, 0f, 0f)
+        position = CameraPosition.fromLatLngZoom(DEFAULT_LOCATION, 12f)
     }
+
+    var activeMarkerPosition by remember { mutableStateOf(DEFAULT_LOCATION) }
 
     val fusedLocationClient = remember {
         LocationServices.getFusedLocationProviderClient(context)
@@ -59,16 +69,31 @@ fun MapScreen() {
     // Move camera to user's current location if permission granted
     LaunchedEffect(hasLocationPermission) {
         if (hasLocationPermission) {
-            fusedLocationClient.lastLocation.addOnSuccessListener { location ->
-                location?.let {
-                    val userLatLng = LatLng(it.latitude, it.longitude)
-                    coroutineScope.launch {
-                        cameraPositionState.animate(
-                            CameraUpdateFactory.newLatLngZoom(userLatLng, 15f)
-                        )
+            fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, CancellationTokenSource().token)
+                .addOnSuccessListener { location ->
+                    if (location != null) {
+                        val userLatLng = LatLng(location.latitude, location.longitude)
+                        activeMarkerPosition = userLatLng
+                        coroutineScope.launch {
+                            cameraPositionState.animate(
+                                CameraUpdateFactory.newLatLngZoom(userLatLng, 15f)
+                            )
+                        }
+                    } else {
+                        // Fallback to last known location
+                        fusedLocationClient.lastLocation.addOnSuccessListener { lastLoc ->
+                            lastLoc?.let {
+                                val userLatLng = LatLng(it.latitude, it.longitude)
+                                activeMarkerPosition = userLatLng
+                                coroutineScope.launch {
+                                    cameraPositionState.animate(
+                                        CameraUpdateFactory.newLatLngZoom(userLatLng, 15f)
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
-            }
         }
     }
 
@@ -78,11 +103,10 @@ fun MapScreen() {
         cameraPositionState = cameraPositionState,
         properties = MapProperties(isMyLocationEnabled = hasLocationPermission)
     ) {
-        // Example marker at Delhi
         Marker(
-            state = MarkerState(position = LatLng(28.6139, 77.2090)),
-            title = "Default Marker",
-            snippet = "Delhi, India"
+            state = MarkerState(position = activeMarkerPosition),
+            title = if (hasLocationPermission) "Your Location" else "Default Region",
+            snippet = if (hasLocationPermission) "Current GPS position" else "Location permission required"
         )
     }
 }
