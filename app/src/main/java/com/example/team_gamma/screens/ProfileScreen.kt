@@ -22,6 +22,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import coil.compose.rememberAsyncImagePainter
 import com.example.team_gamma.R
 import com.example.team_gamma.auth.AuthViewModel
@@ -210,9 +211,10 @@ fun ProfileScreen(
             // ✅ Logout Button (Full width and styled)
             Button(
                 onClick = {
+                    profileViewModel.clearLocalProfile()
                     authViewModel.logout()
                     navController.navigate("login") {
-                        popUpTo("home") { inclusive = true }
+                        popUpTo(navController.graph.findStartDestination().id) { inclusive = true }
                     }
                 },
                 modifier = Modifier

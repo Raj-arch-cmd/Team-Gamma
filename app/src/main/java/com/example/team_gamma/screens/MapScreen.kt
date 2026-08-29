@@ -4,7 +4,12 @@ import android.Manifest
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -21,8 +26,9 @@ import kotlinx.coroutines.launch
 // Standard regional default starting location
 private val DEFAULT_LOCATION = LatLng(18.5204, 73.8567)
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MapScreen() {
+fun MapScreen(onNavigateBack: () -> Unit = {}) {
     val context = LocalContext.current
 
     // Check if location permission is granted
@@ -97,16 +103,34 @@ fun MapScreen() {
         }
     }
 
-    // Google Map Composable
-    GoogleMap(
-        modifier = Modifier.fillMaxSize(),
-        cameraPositionState = cameraPositionState,
-        properties = MapProperties(isMyLocationEnabled = hasLocationPermission)
-    ) {
-        Marker(
-            state = MarkerState(position = activeMarkerPosition),
-            title = if (hasLocationPermission) "Your Location" else "Default Region",
-            snippet = if (hasLocationPermission) "Current GPS position" else "Location permission required"
-        )
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Interactive Map") },
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                    }
+                }
+            )
+        }
+    ) { innerPadding ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+        ) {
+            GoogleMap(
+                modifier = Modifier.fillMaxSize(),
+                cameraPositionState = cameraPositionState,
+                properties = MapProperties(isMyLocationEnabled = hasLocationPermission)
+            ) {
+                Marker(
+                    state = MarkerState(position = activeMarkerPosition),
+                    title = if (hasLocationPermission) "Your Location" else "Default Region",
+                    snippet = if (hasLocationPermission) "Current GPS position" else "Location permission required"
+                )
+            }
+        }
     }
 }

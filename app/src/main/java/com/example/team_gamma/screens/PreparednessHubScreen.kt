@@ -1,6 +1,8 @@
 package com.example.team_gamma.screens
 
 import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -60,6 +62,30 @@ fun PreparednessHubScreen(
                 contentAlignment = Alignment.Center
             ) {
                 GoogleMapScreen()
+
+                // Transparent touch overlay to ensure map clicks navigate to the full map view
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Transparent)
+                        .clickable { navController.navigate("map") }
+                )
+
+                // Standalone Nearest Hospital floating action button anchored in top-left
+                SmallFloatingActionButton(
+                    onClick = { navController.navigate("nearest_hospital") },
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(12.dp),
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    contentColor = MaterialTheme.colorScheme.primary
+                ) {
+                    Icon(
+                        Icons.Default.LocalHospital,
+                        contentDescription = "Nearest Hospital",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
             }
 
             // --- NEUTRAL STATUS SECTION ---
@@ -84,7 +110,7 @@ fun PreparednessHubScreen(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    // First row of actions
+                    // First row of actions (3 items)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceAround
@@ -96,7 +122,7 @@ fun PreparednessHubScreen(
                             )
                         }
                     }
-                    // Second row of actions
+                    // Second row of actions (3 items)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceAround

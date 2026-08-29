@@ -13,6 +13,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @HiltViewModel
 class AiAssistantViewModel @Inject constructor(application: Application) : AndroidViewModel(application) {
@@ -34,7 +35,7 @@ class AiAssistantViewModel @Inject constructor(application: Application) : Andro
     fun sendMessage(userInput: String) {
         _messages.add(ChatMessage(userInput, isFromUser = true))
 
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch {
             // Check if the API key is empty or not set.
             if (geminiApiKey.isBlank() || geminiApiKey == "null") {
                 _messages.add(ChatMessage("API Key not found. Please add your Gemini API key to your local.properties file.", isFromUser = false))
@@ -43,14 +44,20 @@ class AiAssistantViewModel @Inject constructor(application: Application) : Andro
 
             try {
                 // First, try the online Gemini API
-                val response = generativeModel.generateContent(userInput)
-                response.text?.let {
-                    _messages.add(ChatMessage(it, isFromUser = false))
+                val responseText = withContext(Dispatchers.IO) {
+                    generativeModel.generateContent(userInput).text
+                }
+                if (!responseText.isNullOrBlank()) {
+                    _messages.add(ChatMessage(responseText, isFromUser = false))
+                } else {
+                    _messages.add(ChatMessage("I'm having trouble retrieving a response.", isFromUser = false))
                 }
             } catch (e: Exception) {
                 Log.e("AiAssistantViewModel", "API call failed: ${e.message}")
                 // If online fails, check the offline database
-                val offlineAnswer = faqDao.findAnswer(userInput)
+                val offlineAnswer = withContext(Dispatchers.IO) {
+                    faqDao.findAnswer(userInput)
+                }
                 if (offlineAnswer != null) {
                     _messages.add(ChatMessage(offlineAnswer.answer, isFromUser = false))
                 } else {

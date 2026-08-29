@@ -406,7 +406,7 @@ fun AppNavigation(
             NearestHospitalScreen(navController = navController)
         }
         composable("map") {
-            MapScreen()
+            MapScreen(onNavigateBack = { navController.popBackStack() })
         }
     }
 }

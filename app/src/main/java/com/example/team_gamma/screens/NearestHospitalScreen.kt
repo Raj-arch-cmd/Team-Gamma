@@ -100,8 +100,13 @@ private fun findAndShowHospitals(context: Context, navController: NavController)
                 // Make the Intent explicit by setting the Google Maps package
                 mapIntent.setPackage("com.google.android.apps.maps")
 
-                // Attempt to start an activity that can handle the Intent
-                context.startActivity(mapIntent)
+                // Attempt to start explicit Google Maps intent with fallback
+                try {
+                    context.startActivity(mapIntent)
+                } catch (_: Exception) {
+                    val fallbackIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.google.com/maps/search/hospital/@$userLat,$userLng,14z"))
+                    context.startActivity(fallbackIntent)
+                }
 
                 // Go back to the previous screen
                 navController.popBackStack()

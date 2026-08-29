@@ -234,4 +234,27 @@ class ProfileViewModel @Inject constructor(application: Application) : AndroidVi
 
         (completedFields * 100) / totalFields
     }.stateIn(viewModelScope, SharingStarted.Eagerly, 0)
+
+    fun clearLocalProfile() {
+        viewModelScope.launch {
+            val emptyProfile = ProfileEntity(
+                id = 1,
+                userName = "",
+                bloodType = "",
+                allergies = "",
+                medicalConditions = "",
+                email = "",
+                phone = "",
+                emergencyContact = "",
+                dateOfBirth = "",
+                gender = "",
+                weight = "",
+                height = "",
+                address = "",
+                emergencyInstructions = "",
+                profileImageUri = null
+            )
+            appDao.insertProfile(emptyProfile)
+        }
+    }
 }
