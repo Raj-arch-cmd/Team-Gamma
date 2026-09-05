@@ -1,11 +1,14 @@
 package com.example.team_gamma.auth
 
+import android.content.Context
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.team_gamma.data.isNetworkAvailable
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -15,7 +18,9 @@ import kotlinx.coroutines.launch
  * ViewModel for managing Firebase Authentication using StateFlow
  */
 @HiltViewModel
-class AuthViewModel @Inject constructor() : ViewModel() {
+class AuthViewModel @Inject constructor(
+    @ApplicationContext private val context: Context
+) : ViewModel() {
 
     // Firebase authentication instance
     private val auth: FirebaseAuth = FirebaseAuth.getInstance()
@@ -48,6 +53,11 @@ class AuthViewModel @Inject constructor() : ViewModel() {
      * Sign up new user with email and password
      */
     fun signUp(email: String, password: String) {
+        if (!isNetworkAvailable(context)) {
+            _authState.value = AuthState.Error("Offline Mode: Unable to connect to network. Please check your internet connection.")
+            return
+        }
+
         viewModelScope.launch {
             _authState.value = AuthState.Loading
 
@@ -70,6 +80,11 @@ class AuthViewModel @Inject constructor() : ViewModel() {
      * Login existing user
      */
     fun login(email: String, password: String) {
+        if (!isNetworkAvailable(context)) {
+            _authState.value = AuthState.Error("Offline Mode: Unable to connect to network. Please check your internet connection.")
+            return
+        }
+
         viewModelScope.launch {
             _authState.value = AuthState.Loading
 

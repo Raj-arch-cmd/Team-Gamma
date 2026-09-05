@@ -17,6 +17,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withTimeoutOrNull
 
 // This sealed interface represents the different states our UI can be in.
 sealed interface AlertsUiState {
@@ -41,45 +43,34 @@ class AlertsViewModel @Inject constructor(
     fun fetchAlertsForCurrentLocation() {
         _uiState.value = AlertsUiState.Loading
 
-        val hasFine = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
-        val hasCoarse = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        viewModelScope.launch {
+            val hasFine = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+            val hasCoarse = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
 
-        if (!hasFine && !hasCoarse) {
-            Log.w("AlertsViewModel", "Location permission not granted. Falling back to regional default coordinates.")
-            fetchAlerts(18.5204, 73.8567)
-            return
-        }
+            if (!hasFine && !hasCoarse) {
+                Log.w("AlertsViewModel", "Location permission not granted. Falling back to regional default coordinates.")
+                fetchAlerts(18.5204, 73.8567)
+                return@launch
+            }
 
-        try {
-            val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
-            fusedLocationClient.getCurrentLocation(Priority.PRIORITY_BALANCED_POWER_ACCURACY, CancellationTokenSource().token)
-                .addOnSuccessListener { location ->
-                    if (location != null) {
-                        Log.d("AlertsViewModel", "Device location obtained: lat=${location.latitude}, lon=${location.longitude}")
-                        fetchAlerts(location.latitude, location.longitude)
-                    } else {
-                        Log.w("AlertsViewModel", "Current location returned null. Attempting lastLocation fallback.")
-                        fusedLocationClient.lastLocation.addOnSuccessListener { lastLocation ->
-                            if (lastLocation != null) {
-                                Log.d("AlertsViewModel", "Last location obtained: lat=${lastLocation.latitude}, lon=${lastLocation.longitude}")
-                                fetchAlerts(lastLocation.latitude, lastLocation.longitude)
-                            } else {
-                                Log.w("AlertsViewModel", "Last location also null. Using default regional coordinates.")
-                                fetchAlerts(18.5204, 73.8567)
-                            }
-                        }.addOnFailureListener { e ->
-                            Log.e("AlertsViewModel", "Error fetching last location", e)
-                            fetchAlerts(18.5204, 73.8567)
-                        }
-                    }
+            val location = withTimeoutOrNull(3000) {
+                try {
+                    val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
+                    val currentLocationTask = fusedLocationClient.getCurrentLocation(Priority.PRIORITY_BALANCED_POWER_ACCURACY, CancellationTokenSource().token)
+                    currentLocationTask.await()
+                } catch (e: Exception) {
+                    Log.w("AlertsViewModel", "Exception getting current location", e)
+                    null
                 }
-                .addOnFailureListener { e ->
-                    Log.e("AlertsViewModel", "Error fetching current location", e)
-                    fetchAlerts(18.5204, 73.8567)
-                }
-        } catch (e: Exception) {
-            Log.e("AlertsViewModel", "Exception retrieving location", e)
-            fetchAlerts(18.5204, 73.8567)
+            }
+
+            if (location != null) {
+                Log.d("AlertsViewModel", "Device location obtained: lat=${location.latitude}, lon=${location.longitude}")
+                fetchAlerts(location.latitude, location.longitude)
+            } else {
+                Log.w("AlertsViewModel", "Location fetch timed out or returned null. Using default regional coordinates.")
+                fetchAlerts(18.5204, 73.8567)
+            }
         }
     }
 

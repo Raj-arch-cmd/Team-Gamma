@@ -52,6 +52,26 @@ class LocalReportsViewModel @Inject constructor(
 
     private fun listenToReports() {
         _isLoading.value = true
+
+        // Timeout safeguard to unblock UI if network/Firestore hangs offline
+        viewModelScope.launch {
+            kotlinx.coroutines.delay(3000)
+            if (_isLoading.value && _reports.value.isEmpty()) {
+                _isLoading.value = false
+                if (!isNetworkAvailable(context)) {
+                    _errorMessage.value = "Offline Mode: Unable to connect to network. Please check your internet connection."
+                } else {
+                    _errorMessage.value = "Network request timed out. Please check your connection."
+                }
+            }
+        }
+
+        if (!isNetworkAvailable(context)) {
+            _isLoading.value = false
+            _errorMessage.value = "Offline Mode: Unable to connect to network. Please check your internet connection."
+            return
+        }
+
         firestore.collection("reports")
             .orderBy("createdAt", Query.Direction.DESCENDING)
             .addSnapshotListener { snapshot, error ->
@@ -179,6 +199,13 @@ class LocalReportsViewModel @Inject constructor(
     }
 
     fun addReport(category: ReportCategory, description: String, imageUriString: String?, onComplete: (Boolean) -> Unit = {}) {
+        if (!isNetworkAvailable(context)) {
+            _isLoading.value = false
+            _errorMessage.value = "Offline Mode: Unable to connect to network. Please check your internet connection."
+            onComplete(false)
+            return
+        }
+
         val reportId = UUID.randomUUID().toString()
         val currentUserId = auth.currentUser?.uid ?: "anonymous"
         val createdAt = System.currentTimeMillis()
@@ -257,6 +284,11 @@ class LocalReportsViewModel @Inject constructor(
     }
 
     fun toggleConfirmation(report: LocalReport) {
+        if (!isNetworkAvailable(context)) {
+            _errorMessage.value = "Offline Mode: Unable to connect to network. Please check your internet connection."
+            return
+        }
+
         val currentUserId = auth.currentUser?.uid
         if (currentUserId.isNullOrBlank()) {
             _errorMessage.value = "Please sign in to confirm reports."
@@ -284,6 +316,13 @@ class LocalReportsViewModel @Inject constructor(
     }
 
     fun deleteReport(report: LocalReport, onComplete: (Boolean) -> Unit = {}) {
+        if (!isNetworkAvailable(context)) {
+            _isLoading.value = false
+            _errorMessage.value = "Offline Mode: Unable to connect to network. Please check your internet connection."
+            onComplete(false)
+            return
+        }
+
         val currentUserId = auth.currentUser?.uid
         if (currentUserId.isNullOrBlank() || currentUserId != report.userId || report.userId == "anonymous") {
             _errorMessage.value = "You are not authorized to delete this report."

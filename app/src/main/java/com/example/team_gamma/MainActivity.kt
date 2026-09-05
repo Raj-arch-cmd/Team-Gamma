@@ -94,6 +94,12 @@ class MainActivity : ComponentActivity() {
                             currentUser != null -> "dashboard"
                             else -> "login"
                         }
+                    } else {
+                        // Fallback timeout safeguard if DataStore state flow is delayed on startup
+                        kotlinx.coroutines.delay(1500)
+                        if (startDestination == null) {
+                            startDestination = if (currentUser != null) "dashboard" else "login"
+                        }
                     }
                 }
 
