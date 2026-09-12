@@ -265,17 +265,23 @@ class LocalReportsViewModel @Inject constructor(
                                     saveFirestoreReport(downloadUrl.toString())
                                 }
                                 .addOnFailureListener { e ->
-                                    Log.e("LocalReportsViewModel", "Failed to get download URL, saving report without cloud image", e)
-                                    saveFirestoreReport(null)
+                                    _isLoading.value = false
+                                    Log.e("LocalReportsViewModel", "Failed to get download URL for report image $reportId", e)
+                                    _errorMessage.value = "Failed to get photo URL: ${e.localizedMessage}"
+                                    onComplete(false)
                                 }
                         }
                         .addOnFailureListener { e ->
-                            Log.e("LocalReportsViewModel", "Failed to upload image bytes to Firebase Storage, saving report without cloud image", e)
-                            saveFirestoreReport(null)
+                            _isLoading.value = false
+                            Log.e("LocalReportsViewModel", "Failed to upload image bytes to Firebase Storage for report $reportId", e)
+                            _errorMessage.value = "Failed to upload photo: ${e.localizedMessage}"
+                            onComplete(false)
                         }
                 } else {
-                    Log.w("LocalReportsViewModel", "Compression returned null, saving report without cloud image")
-                    saveFirestoreReport(null)
+                    _isLoading.value = false
+                    Log.w("LocalReportsViewModel", "Compression returned null for report image $reportId")
+                    _errorMessage.value = "Failed to process attached photo. Please try a different image."
+                    onComplete(false)
                 }
             }
         } else {

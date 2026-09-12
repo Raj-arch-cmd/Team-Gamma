@@ -1,5 +1,6 @@
+package com.example.team_gamma
+
 import android.app.Application
-import com.example.team_gamma.BuildConfig
 import com.google.firebase.Firebase
 import com.google.firebase.appcheck.appCheck
 import com.google.firebase.appcheck.debug.DebugAppCheckProviderFactory
