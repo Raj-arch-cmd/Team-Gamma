@@ -114,6 +114,45 @@ com.example.team_gamma/
 
 ---
 
+## App Screenshots
+
+Explore the key screens and user flows of ResQTech below:
+
+### 1. Login
+![Login Screen](docs/screenshots/Login_screen.jpeg)
+
+### 2. Create Account
+![Create Account Screen](docs/screenshots/CreateAccount_screen.jpeg)
+
+### 3. Home
+![Home Screen](docs/screenshots/Home_screen.jpeg)
+
+### 4. Alerts
+![Alerts Screen](docs/screenshots/Alerts_screen.jpeg)
+
+### 5. Emergency Contact / SOS
+![Emergency Contact / SOS Screen](docs/screenshots/EmergencyContact_screen.jpeg)
+
+### 6. Evacuation
+![Evacuation Screen](docs/screenshots/Evacuation_screen.jpeg)
+
+### 7. Community Reports
+![Community Reports Screen](docs/screenshots/Report01_screen.jpeg)
+
+### 8. Report Details
+![Report Details Screen](docs/screenshots/Report02_screen.jpeg)
+
+### 9. Info / Dos & Don'ts
+![Info / Dos & Don'ts Screen](docs/screenshots/Info_screen.jpeg)
+
+### 10. Profile
+![Profile Screen](docs/screenshots/Profile_screen.jpeg)
+
+### 11. AI Assistant
+![AI Assistant Screen](docs/screenshots/Ai_Assistant_screen.jpeg)
+
+---
+
 ## Setup & Installation
 
 ### Prerequisites
