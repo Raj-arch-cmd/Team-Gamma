@@ -118,38 +118,28 @@ com.example.team_gamma/
 
 Explore the key screens and user flows of ResQTech below:
 
-### 1. Login
-![Login Screen](docs/screenshots/Login_screen.jpeg)
-
-### 2. Create Account
-![Create Account Screen](docs/screenshots/CreateAccount_screen.jpeg)
-
-### 3. Home
-![Home Screen](docs/screenshots/Home_screen.jpeg)
-
-### 4. Alerts
-![Alerts Screen](docs/screenshots/Alerts_screen.jpeg)
-
-### 5. Emergency Contact / SOS
-![Emergency Contact / SOS Screen](docs/screenshots/EmergencyContact_screen.jpeg)
-
-### 6. Evacuation
-![Evacuation Screen](docs/screenshots/Evacuation_screen.jpeg)
-
-### 7. Community Reports
-![Community Reports Screen](docs/screenshots/Report01_screen.jpeg)
-
-### 8. Report Details
-![Report Details Screen](docs/screenshots/Report02_screen.jpeg)
-
-### 9. Info / Dos & Don'ts
-![Info / Dos & Don'ts Screen](docs/screenshots/Info_screen.jpeg)
-
-### 10. Profile
-![Profile Screen](docs/screenshots/Profile_screen.jpeg)
-
-### 11. AI Assistant
-![AI Assistant Screen](docs/screenshots/Ai_Assistant_screen.jpeg)
+<table>
+  <tr>
+    <td align="center"><b>1. Login</b><br><img src="docs/screenshots/Login_screen.jpeg" width="220"/></td>
+    <td align="center"><b>2. Create Account</b><br><img src="docs/screenshots/CreateAccount_screen.jpeg" width="220"/></td>
+    <td align="center"><b>3. Home</b><br><img src="docs/screenshots/Home_screen.jpeg" width="220"/></td>
+  </tr>
+  <tr>
+    <td align="center"><b>4. Alerts</b><br><img src="docs/screenshots/Alerts_screen.jpeg" width="220"/></td>
+    <td align="center"><b>5. Emergency Contact / SOS</b><br><img src="docs/screenshots/EmergencyContact_screen.jpeg" width="220"/></td>
+    <td align="center"><b>6. Evacuation</b><br><img src="docs/screenshots/Evacuation_screen.jpeg" width="220"/></td>
+  </tr>
+  <tr>
+    <td align="center"><b>7. Community Reports</b><br><img src="docs/screenshots/Report01_screen.jpeg" width="220"/></td>
+    <td align="center"><b>8. Report Details</b><br><img src="docs/screenshots/Report02_screen.jpeg" width="220"/></td>
+    <td align="center"><b>9. Info / Dos & Don'ts</b><br><img src="docs/screenshots/Info_screen.jpeg" width="220"/></td>
+  </tr>
+  <tr>
+    <td align="center"><b>10. Profile</b><br><img src="docs/screenshots/Profile_screen.jpeg" width="220"/></td>
+    <td align="center"><b>11. AI Assistant</b><br><img src="docs/screenshots/Ai_Assistant_screen.jpeg" width="220"/></td>
+    <td></td>
+  </tr>
+</table>
 
 ---
 
